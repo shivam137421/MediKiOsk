@@ -133,15 +133,14 @@ export default function PatientPortalPage() {
     }
   };
 
-  // FIX 1: Voice Listening Toggle
+  // FIX 1 & 2: Voice Listening Toggle
   const handleVoiceToggle = () => {
     if (isListening) {
       speechService.stopListening();
       setIsListening(false);
     } else {
-      setIsListening(true);
       console.log(`[MediKiosk Speech] Starting ASR listening in language: ${language}`);
-      speechService.startListening(
+      const started = speechService.startListening(
         language,
         (text: string, isFinal: boolean) => {
           console.log(`[MediKiosk Speech] Transcribed: "${text}" (isFinal: ${isFinal})`);
@@ -156,8 +155,14 @@ export default function PatientPortalPage() {
         (err: any) => {
           console.error('[MediKiosk Speech] ASR error:', err);
           setIsListening(false);
+        },
+        (active: boolean) => {
+          setIsListening(active);
         }
       );
+      if (started) {
+        setIsListening(true);
+      }
     }
   };
 
