@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { adaptiveInterviewEngine } from '@/lib/ontology/adaptive-interview';
 
 export async function POST(req: NextRequest) {
   try {
     const { history, language } = await req.json();
-    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+    const apiKey = (process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '').trim();
 
     const lang = (language === 'en' ? 'en' : 'hi') as 'hi' | 'en';
     const isHi = lang === 'hi';
@@ -32,30 +32,30 @@ Rules:
 - If patient mentions chest pain, ask about cardiac symptoms.
 - Keep question to 1 focused sentence.`;
 
-    if (apiKey && apiKey.startsWith('AIzaSy')) {
+    if (apiKey && apiKey.length > 10) {
       try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-          model: 'gemini-1.5-flash',
-          systemInstruction: defaultSystemPrompt,
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 120,
-          },
-        });
-
+        const ai = new GoogleGenAI({ apiKey });
         const contents = (history || []).map((h: any) => ({
           role: h.role === 'assistant' || h.role === 'ai' ? 'model' : 'user',
           parts: [{ text: h.content || h.text || '' }],
         }));
 
-        const result = await model.generateContent({ contents });
-        const text = result.response.text();
+        const result = await ai.models.generateContent({
+          model: 'gemini-1.5-flash',
+          contents,
+          config: {
+            systemInstruction: defaultSystemPrompt,
+            temperature: 0.3,
+            maxOutputTokens: 120,
+          },
+        });
+
+        const text = result.text;
         if (text && text.trim().length > 0) {
           return NextResponse.json({ reply: text.trim(), provider: 'gemini-1.5-flash' });
         }
       } catch (geminiError: any) {
-        console.warn('[API Route /api/ai/chat] Gemini API error, using tailored clinical rule engine:', geminiError?.message || geminiError);
+        console.warn('[API Route /api/ai/chat] Google GenAI API response:', geminiError?.message || geminiError);
       }
     }
 

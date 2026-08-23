@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { adaptiveInterviewEngine } from '@/lib/ontology/adaptive-interview';
 
 export interface AIChatMessage {
@@ -15,17 +15,18 @@ export interface AICompletionOptions {
 
 export class GeminiAIProvider {
   public name = 'Google Gemini (Gemini 1.5 Flash)';
-  private client: GoogleGenerativeAI | null = null;
+  private ai: GoogleGenAI | null = null;
   private apiKey: string = '';
 
   constructor() {
-    this.apiKey = 
-      process.env.GEMINI_API_KEY || 
-      process.env.NEXT_PUBLIC_GEMINI_API_KEY || 
+    this.apiKey =
+      process.env.GEMINI_API_KEY ||
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
       '';
-    if (this.apiKey && this.apiKey.startsWith('AIzaSy')) {
+
+    if (this.apiKey && this.apiKey.trim().length > 10) {
       try {
-        this.client = new GoogleGenerativeAI(this.apiKey);
+        this.ai = new GoogleGenAI({ apiKey: this.apiKey.trim() });
       } catch (e) {
         console.warn('[Gemini Provider] Initialization error:', e);
       }
@@ -33,7 +34,7 @@ export class GeminiAIProvider {
   }
 
   public isAvailable(): boolean {
-    return Boolean(this.apiKey && this.apiKey.length > 5);
+    return Boolean(this.apiKey && this.apiKey.trim().length > 10);
   }
 
   public async generateFollowUpQuestion(
@@ -62,36 +63,7 @@ Rules:
 - If patient mentions chest pain, ask about cardiac symptoms.
 - Keep question to 1 focused sentence.`;
 
-    // 2. Try Live Gemini SDK if valid Google AI key is provided
-    if (this.client && this.apiKey && this.apiKey.startsWith('AIzaSy')) {
-      try {
-        const model = this.client.getGenerativeModel({
-          model: 'gemini-1.5-flash',
-          systemInstruction: options.systemPrompt || defaultSystemPrompt,
-          generationConfig: {
-            temperature: options.temperature ?? 0.3,
-            maxOutputTokens: options.maxTokens ?? 120,
-          },
-        });
-
-        const contents = history
-          .filter(h => h.role !== 'system')
-          .map(h => ({
-            role: h.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: h.content }],
-          }));
-
-        const result = await model.generateContent({ contents });
-        const text = result.response.text();
-        if (text && text.trim().length > 0) {
-          return text.trim();
-        }
-      } catch (err) {
-        console.warn('[Gemini Provider] API call error, falling back to dynamic clinical rules:', err);
-      }
-    }
-
-    // 3. Try Calling Server API Route
+    // 2. Try Calling Server API Route (which securely uses @google/genai with x-goog-api-key)
     try {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
@@ -102,11 +74,11 @@ Rules:
         const data = await res.json();
         if (data.reply) return data.reply;
       }
-    } catch {
-      // Fallback
+    } catch (fetchErr) {
+      console.warn('[Gemini Provider] Server route call error:', fetchErr);
     }
 
-    // 4. Guaranteed Dynamic Question from parsed clinical slots
+    // 3. Guaranteed Dynamic Question from parsed clinical information gaps
     const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang);
     return dynamicNext.questionText;
   }
