@@ -407,12 +407,26 @@ export class AdaptiveClinicalInterviewEngine {
     // ALL GAPS SATISFIED -> SMOOTH CONCLUSION TO STEP 2
     // --------------------------------------------------------------------------
     return {
-      questionText: isHi
-        ? 'धन्यवाद, आपके लक्षणों और चिकित्सीय इतिहास का पूर्ण रिकॉर्ड तैयार कर लिया गया है। अब अगले चरण (आयुर्वेद एवं जीवनशैली परीक्षा) पर आगे बढ़ते हैं।'
-        : 'Thank you, your clinical history and symptoms have been accurately captured. Let us now proceed to Step 2 for the Ayurvedic & Lifestyle Assessment.',
+      questionText: this.getClosingStatement(language),
       isReadyForStep2: true,
       targetSlot: 'completed',
     };
+  }
+
+  public getClosingStatement(language: 'hi' | 'en'): string {
+    return language === 'hi'
+      ? 'धन्यवाद, आपके लक्षणों और चिकित्सीय इतिहास का पूर्ण रिकॉर्ड तैयार कर लिया गया है। अब अगले चरण (आयुर्वेद एवं जीवनशैली परीक्षा) पर आगे बढ़ते हैं।'
+      : 'Thank you, your clinical symptoms and medical history have been thoroughly recorded. Now proceeding to Step 2 for the Ayurvedic & Lifestyle Assessment.';
+  }
+
+  public isClinicalIntakeComplete(slots: ExtractedClinicalSlots): boolean {
+    const hasChiefComplaint = Boolean(slots.chiefComplaint && slots.chiefComplaint.trim().length > 0);
+    const hasOnset = Boolean(slots.durationOnset && slots.durationOnset.trim().length > 0);
+    const hasCharacter = Boolean(slots.characterQuality && slots.characterQuality.trim().length > 0);
+    const hasHistory = Boolean(slots.pastHistory && slots.pastHistory.length > 0);
+    const hasDetail = slots.severityNumber !== undefined || Boolean(slots.radiationLocation) || Boolean(slots.associatedSymptoms && slots.associatedSymptoms.length > 0);
+
+    return hasChiefComplaint && hasOnset && hasCharacter && hasHistory && hasDetail;
   }
 }
 

@@ -11,10 +11,24 @@ export class BrowserSpeechService {
   private currentRecognition: any = null;
   private synthesis: SpeechSynthesis | null = null;
   private activeTranscript: string = '';
+  private cachedVoices: SpeechSynthesisVoice[] = [];
+  private currentAudio: HTMLAudioElement | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
       this.synthesis = window.speechSynthesis || null;
+      if (this.synthesis) {
+        this.loadVoices();
+        if (typeof window.speechSynthesis.onvoiceschanged !== 'undefined') {
+          window.speechSynthesis.onvoiceschanged = () => this.loadVoices();
+        }
+      }
+    }
+  }
+
+  private loadVoices(): void {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      this.cachedVoices = window.speechSynthesis.getVoices() || [];
     }
   }
 
@@ -25,6 +39,54 @@ export class BrowserSpeechService {
       (window as any).webkitSpeechRecognition
     );
     return hasRecognition || Boolean(window.speechSynthesis);
+  }
+
+  /**
+   * Finds the best native Indian voice for Hindi (hi-IN) or Indian English (en-IN).
+   */
+  private getBestIndianVoice(language: 'en' | 'hi'): SpeechSynthesisVoice | null {
+    this.loadVoices();
+    const voices = this.cachedVoices;
+    if (!voices || voices.length === 0) return null;
+
+    if (language === 'hi') {
+      // 1. Hindi Natural Voices (Microsoft Edge / Chrome / Android)
+      const hindiPriorityNames = [
+        'swara',
+        'hemant',
+        'kalpana',
+        'google हिन्दी',
+        'google hindi',
+        'hindi',
+        'हिन्दी',
+      ];
+      for (const name of hindiPriorityNames) {
+        const found = voices.find(v => 
+          v.name.toLowerCase().includes(name) || (v.lang && (v.lang.toLowerCase() === 'hi-in' || v.lang.toLowerCase().startsWith('hi')))
+        );
+        if (found) return found;
+      }
+      return voices.find(v => v.lang.toLowerCase().startsWith('hi')) || null;
+    } else {
+      // 2. Indian English Natural Voices (Microsoft Neerja / Prabhat / Google Indian English)
+      const indianEnglishPriorityNames = [
+        'neerja',
+        'prabhat',
+        'heera',
+        'ravi',
+        'google indian english',
+        'india',
+        'en-in',
+        'en_in',
+      ];
+      for (const name of indianEnglishPriorityNames) {
+        const found = voices.find(v => 
+          v.name.toLowerCase().includes(name) || (v.lang && (v.lang.toLowerCase() === 'en-in' || v.lang.toLowerCase() === 'en_in'))
+        );
+        if (found) return found;
+      }
+      return voices.find(v => v.lang.toLowerCase().includes('in')) || null;
+    }
   }
 
   public startListening(
@@ -87,7 +149,6 @@ export class BrowserSpeechService {
       recognition.onerror = (event: any) => {
         console.warn('[BrowserSpeechService] Speech recognition event error:', event.error);
         if (onStatusChange) onStatusChange(false);
-        // Ignore "no-speech" or "aborted" harmless events
         if (event.error !== 'no-speech' && event.error !== 'aborted') {
           onError(event.error);
         }
@@ -98,7 +159,6 @@ export class BrowserSpeechService {
         if (onStatusChange) onStatusChange(false);
         this.currentRecognition = null;
 
-        // If user finished speaking and we have a captured transcript, submit it
         if (this.activeTranscript && this.activeTranscript.trim().length > 0) {
           onResult(this.activeTranscript.trim(), true);
           this.activeTranscript = '';
@@ -127,38 +187,105 @@ export class BrowserSpeechService {
     }
   }
 
+  /**
+   * Speaks the text with a natural Indian accent in Hindi (hi-IN) or Indian English (en-IN).
+   */
   public speak(text: string, language: 'en' | 'hi', onEnd?: () => void): void {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    if (typeof window === 'undefined') return;
 
-    try {
-      window.speechSynthesis.cancel(); // Stop any overlapping speech
+    this.stopSpeaking();
 
-      // Clean markdown symbols from spoken text
-      const cleanText = text
-        .replace(/[*_#`~]/g, '')
-        .replace(/\(.*?\)/g, '')
-        .trim();
+    // Clean markdown and symbols for pristine speech
+    const cleanText = text
+      .replace(/[*_#`~|]/g, '')
+      .replace(/\(.*?\)/g, '')
+      .replace(/<think>[\s\S]*?<\/think>/g, '')
+      .replace(/[-–—]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = language === 'hi' ? 'hi-IN' : 'en-IN';
-      utterance.rate = 0.95; // Clear clinical pace
-      utterance.pitch = 1.0;
+    if (!cleanText) {
+      if (onEnd) onEnd();
+      return;
+    }
 
-      if (onEnd) {
-        utterance.onend = onEnd;
-        utterance.onerror = onEnd;
+    const indianVoice = this.getBestIndianVoice(language);
+
+    // Method A: Browser Web Speech API with explicitly selected Indian voice
+    if (window.speechSynthesis && (indianVoice || language === 'hi' || language === 'en')) {
+      try {
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = language === 'hi' ? 'hi-IN' : 'en-IN';
+        
+        if (indianVoice) {
+          utterance.voice = indianVoice;
+          console.log(`[BrowserSpeechService] Selected Indian Voice: "${indianVoice.name}" (${indianVoice.lang})`);
+        }
+
+        // Pacing for authentic Indian clinical clarity
+        utterance.rate = language === 'hi' ? 0.92 : 0.94;
+        utterance.pitch = language === 'hi' ? 1.0 : 1.05;
+
+        let endCalled = false;
+        const handleEnd = () => {
+          if (!endCalled) {
+            endCalled = true;
+            if (onEnd) onEnd();
+          }
+        };
+
+        utterance.onend = handleEnd;
+        utterance.onerror = (e) => {
+          console.warn('[BrowserSpeechService] Utterance error, finishing turn:', e);
+          handleEnd();
+        };
+
+        window.speechSynthesis.speak(utterance);
+        return;
+      } catch (speechErr) {
+        console.warn('[BrowserSpeechService] Web Speech error, trying audio fallback:', speechErr);
       }
+    }
 
-      window.speechSynthesis.speak(utterance);
-    } catch (e) {
-      console.warn('[BrowserSpeechService] TTS speak error:', e);
+    // Method B: High-Fidelity Indian Neural Audio Stream Fallback
+    try {
+      const langCode = language === 'hi' ? 'hi' : 'en-IN';
+      const encoded = encodeURIComponent(cleanText.slice(0, 200));
+      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${langCode}&q=${encoded}`;
+      const audio = new Audio(audioUrl);
+      this.currentAudio = audio;
+
+      audio.onended = () => {
+        this.currentAudio = null;
+        if (onEnd) onEnd();
+      };
+      audio.onerror = () => {
+        this.currentAudio = null;
+        if (onEnd) onEnd();
+      };
+
+      audio.play().catch(() => {
+        if (onEnd) onEnd();
+      });
+    } catch {
       if (onEnd) onEnd();
     }
   }
 
   public stopSpeaking(): void {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
+    if (typeof window !== 'undefined') {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      if (this.currentAudio) {
+        try {
+          this.currentAudio.pause();
+          this.currentAudio.currentTime = 0;
+        } catch {
+          // Ignore
+        }
+        this.currentAudio = null;
+      }
     }
   }
 }

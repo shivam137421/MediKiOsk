@@ -55,9 +55,10 @@ export default function PatientPortalPage() {
   const [language, setLanguage] = useState<'hi' | 'en'>('hi');
   const [activePatient, setActivePatient] = useState<Patient>(mockDB.getState().patients[0]);
   
-  // FIX 1: Voice & Adaptive Interview State
+  // FIX 1 & 2: Voice & Adaptive Interview State
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isAutoAdvancing, setIsAutoAdvancing] = useState(false);
   const [inputText, setInputText] = useState('');
   const [liveTranscript, setLiveTranscript] = useState('');
   const [clinicalSlots, setClinicalSlots] = useState<ExtractedClinicalSlots>({});
@@ -229,6 +230,16 @@ export default function PatientPortalPage() {
         nextQuestionText = nextQ.questionText;
       }
 
+      const isIntakeComplete = adaptiveInterviewEngine.isClinicalIntakeComplete(updatedSlots);
+
+      if (isIntakeComplete) {
+        setIsAutoAdvancing(true);
+        // If the model gave a general reply, ensure closing statement is clear
+        if (!nextQuestionText.includes('चरण') && !nextQuestionText.includes('Step 2') && !nextQuestionText.includes('धन्यवाद')) {
+          nextQuestionText = `${nextQuestionText} ${adaptiveInterviewEngine.getClosingStatement(language)}`;
+        }
+      }
+
       const aiTurn: ClinicalConversationTurn = {
         role: 'ai',
         content: nextQuestionText,
@@ -238,9 +249,25 @@ export default function PatientPortalPage() {
 
       setConversationTurns([...newTurns, aiTurn]);
 
-      // 4. Speak response via Web Speech TTS
+      // 4. Speak response via Indian Accent TTS & Auto-progress if complete
       setIsSpeaking(true);
-      speechService.speak(nextQuestionText, language, () => setIsSpeaking(false));
+      speechService.speak(nextQuestionText, language, () => {
+        setIsSpeaking(false);
+        if (isIntakeComplete) {
+          setTimeout(() => {
+            setIsAutoAdvancing(false);
+            setActiveStep('ayush');
+          }, 1000);
+        }
+      });
+
+      // Safety fallback timer if TTS is interrupted or skipped
+      if (isIntakeComplete) {
+        setTimeout(() => {
+          setIsAutoAdvancing(false);
+          setActiveStep((prev) => (prev === 'talk' ? 'ayush' : prev));
+        }, 4500);
+      }
     })();
   };
 
@@ -503,6 +530,29 @@ export default function PatientPortalPage() {
                 </div>
               ))}
             </div>
+
+            {/* Auto-Progression Status Banner */}
+            {isAutoAdvancing && (
+              <div className="bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-emerald-500/15 border border-emerald-500/30 p-4 rounded-2xl flex items-center justify-between animate-pulse">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-sm">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                      {language === 'hi' ? 'चिकित्सीय इतिहास पूर्ण दर्ज!' : 'Clinical Intake Complete!'}
+                    </p>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                      {language === 'hi' ? 'चरण 2 (आयुर्वेद एवं जीवनशैली परीक्षा) पर स्वतः आगे बढ़ रहे हैं...' : 'Auto-progressing to Step 2: Ayurvedic Assessment...'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 animate-bounce">
+                  <span>Step 2</span>
+                  <ArrowRight className="w-4 h-4" />
+                </div>
+              </div>
+            )}
 
             {/* Voice / Text Input Box */}
             <div className="flex items-center gap-2">
