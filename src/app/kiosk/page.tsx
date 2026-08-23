@@ -159,7 +159,7 @@ export default function PatientKioskPage() {
       // Create new encounter
       const encounter = await dataService.createEncounter({
         patient_id: activePatient.id,
-        kiosk_id: 'k1111111-1111-1111-1111-111111111111',
+        kiosk_id: '11111111-1111-1111-1111-111111111111',
         department_id: isAyushMode ? 'd3333333-3333-3333-3333-333333333333' : 'd1111111-1111-1111-1111-111111111111',
         attending_doctor_id: 'usr-doc-01',
         triage_nurse_id: 'usr-tri-01',
