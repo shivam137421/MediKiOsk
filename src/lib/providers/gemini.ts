@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { adaptiveInterviewEngine } from '@/lib/ontology/adaptive-interview';
 
 export interface AIChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -13,7 +14,7 @@ export interface AICompletionOptions {
 }
 
 export class GeminiAIProvider {
-  public name = 'Google Gemini (Gemini 1.5 Flash / Pro)';
+  public name = 'Google Gemini (Gemini 1.5 Flash)';
   private client: GoogleGenerativeAI | null = null;
   private apiKey: string = '';
 
@@ -22,7 +23,7 @@ export class GeminiAIProvider {
       process.env.GEMINI_API_KEY || 
       process.env.NEXT_PUBLIC_GEMINI_API_KEY || 
       '';
-    if (this.apiKey) {
+    if (this.apiKey && this.apiKey.startsWith('AIzaSy')) {
       try {
         this.client = new GoogleGenerativeAI(this.apiKey);
       } catch (e) {
@@ -42,34 +43,37 @@ export class GeminiAIProvider {
     const lang = options.language || 'hi';
     const isHi = lang === 'hi';
 
-    const defaultSystemPrompt = isHi
-      ? `आप 'MediKiosk' हॉस्पिटल के अनुभवी एआई क्लीनिकल डॉक्टर हैं। आपका कार्य मरीज से उनकी बीमारी का OLDCARTS (Onset, Location, Duration, Character, Radiation, Severity, Associated symptoms, PMH) के अनुसार विस्तार से इतिहास लेना है।
-नियम:
-1. मरीज के दिए गए पिछले उत्तर को ध्यान से पढ़ें और समझें।
-2. केवल एक (1) संक्षिप्त, स्पष्ट और सहानुभूतिपूर्ण फॉलो-अप प्रश्न पूछें।
-3. भाषा: शुद्ध और स्वाभाविक हिंदी।
-4. यदि सीने में दर्द, सांस फूलना, ठंडा पसीना या बेहोशी जैसे आपातकालीन लक्षण (Red-flags) दिखें, तो तुरंत उस पर प्रश्न पूछें।`
-      : `You are the 'MediKiosk' AI Clinical Doctor Assistant at a hospital triage intake. Your goal is to conduct an adaptive, empathetic clinical intake following the OLDCARTS framework (Onset, Location, Duration, Character, Radiation, Severity 1-10, Associated symptoms, Past medical history).
-Rules:
-1. Carefully read and understand the patient's previous response in the conversation history.
-2. Ask exactly ONE (1) focused, concise, and empathetic clinical follow-up question per turn.
-3. Language: Clear, professional English.
-4. If emergency symptoms appear (crushing chest pain, dyspnea, cold diaphoresis), prioritize vital red-flag exploration.`;
+    // 1. Parse clinical slots from history
+    let slots = {};
+    const patientMessages = history.filter(h => h.role === 'user');
+    for (const msg of patientMessages) {
+      slots = adaptiveInterviewEngine.parsePatientInput(msg.content, slots);
+    }
 
-    // 1. Try Live Gemini SDK if configured
-    if (this.client && this.apiKey) {
+    const defaultSystemPrompt = isHi
+      ? `आप 'MediKiosk' अस्पताल के अनुभवी एआई डॉक्टर हैं। मरीज के मुख्य लक्षण को समझकर OLDCARTS (शुरुआत, दर्द का प्रकार, तीव्रता 1-10, फैलाव, संबंधित लक्षण) के अनुसार केवल एक (1) प्रासंगिक सवाल पूछें।
+नियम:
+- यदि मरीज पैर/घुटने/कमर के दर्द की बात करे, तो केवल पैर, जोड़ों, सूजन या चलने से संबंधित सवाल पूछें (सीने के दर्द का सवाल कभी न पूछें)।
+- यदि मरीज सीने के दर्द की बात करे, तभी दिल/छाती/पसीने से जुड़े सवाल पूछें।
+- केवल 1 संक्षिप्त प्रश्न पूछें।`
+      : `You are the 'MediKiosk' AI Clinical Doctor at triage. Based on the patient's primary complaint, ask exactly ONE (1) relevant clinical follow-up question.
+Rules:
+- If patient mentions leg/knee/joint pain, ask ONLY about leg/walking/swelling/stiffness (NEVER ask about chest/arm/heart unless patient mentions it).
+- If patient mentions chest pain, ask about cardiac symptoms.
+- Keep question to 1 focused sentence.`;
+
+    // 2. Try Live Gemini SDK if valid Google AI key is provided
+    if (this.client && this.apiKey && this.apiKey.startsWith('AIzaSy')) {
       try {
-        // Use gemini-1.5-flash for low latency and free tier efficiency
         const model = this.client.getGenerativeModel({
           model: 'gemini-1.5-flash',
           systemInstruction: options.systemPrompt || defaultSystemPrompt,
           generationConfig: {
             temperature: options.temperature ?? 0.3,
-            maxOutputTokens: options.maxTokens ?? 150,
+            maxOutputTokens: options.maxTokens ?? 120,
           },
         });
 
-        // Format chat history for Gemini
         const contents = history
           .filter(h => h.role !== 'system')
           .map(h => ({
@@ -83,11 +87,11 @@ Rules:
           return text.trim();
         }
       } catch (err) {
-        console.warn('[Gemini Provider] API call error, falling back to Next.js API route or local clinical rules:', err);
+        console.warn('[Gemini Provider] API call error, falling back to dynamic clinical rules:', err);
       }
     }
 
-    // 2. Try Calling Server-Side API Route (`/api/ai/chat`)
+    // 3. Try Calling Server API Route
     try {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
@@ -99,13 +103,12 @@ Rules:
         if (data.reply) return data.reply;
       }
     } catch {
-      // Ignore and fallback to local clinical rule engine
+      // Fallback
     }
 
-    // 3. Fallback to Built-In Clinical State Machine
-    return isHi
-      ? 'क्या आपको इस दर्द के साथ सांस लेने में कठिनाई, ठंडा पसीना या चक्कर जैसा महसूस हो रहा है?'
-      : 'Are you experiencing any shortness of breath, cold sweating, or dizziness along with this?';
+    // 4. Guaranteed Dynamic Question from parsed clinical slots
+    const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang, patientMessages.length);
+    return dynamicNext.questionText;
   }
 }
 

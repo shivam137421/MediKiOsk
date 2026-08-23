@@ -1,29 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { adaptiveInterviewEngine } from '@/lib/ontology/adaptive-interview';
 
 export async function POST(req: NextRequest) {
   try {
     const { history, language } = await req.json();
     const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
 
-    const lang = language || 'hi';
+    const lang = (language === 'en' ? 'en' : 'hi') as 'hi' | 'en';
     const isHi = lang === 'hi';
 
-    const defaultSystemPrompt = isHi
-      ? `आप 'MediKiosk' हॉस्पिटल के अनुभवी एआई क्लीनिकल डॉक्टर हैं। आपका कार्य मरीज से उनकी बीमारी का OLDCARTS (Onset, Location, Duration, Character, Radiation, Severity, Associated symptoms, PMH) के अनुसार विस्तार से इतिहास लेना है।
-नियम:
-1. मरीज के दिए गए पिछले उत्तर को ध्यान से पढ़ें और समझें।
-2. केवल एक (1) संक्षिप्त, स्पष्ट और सहानुभूतिपूर्ण फॉलो-अप प्रश्न पूछें।
-3. भाषा: शुद्ध और स्वाभाविक हिंदी।
-4. यदि सीने में दर्द, सांस फूलना, ठंडा पसीना या बेहोशी जैसे आपातकालीन लक्षण (Red-flags) दिखें, तो तुरंत उस पर प्रश्न पूछें।`
-      : `You are the 'MediKiosk' AI Clinical Doctor Assistant at a hospital triage intake. Your goal is to conduct an adaptive, empathetic clinical intake following the OLDCARTS framework (Onset, Location, Duration, Character, Radiation, Severity 1-10, Associated symptoms, Past medical history).
-Rules:
-1. Carefully read and understand the patient's previous response in the conversation history.
-2. Ask exactly ONE (1) focused, concise, and empathetic clinical follow-up question per turn.
-3. Language: Clear, professional English.
-4. If emergency symptoms appear (crushing chest pain, dyspnea, cold diaphoresis), prioritize vital red-flag exploration.`;
+    // Parse the entire patient dialogue into clinical slots
+    let slots = {};
+    const patientMessages = (history || []).filter((h: any) => h.role === 'user' || h.role === 'patient');
+    for (const msg of patientMessages) {
+      const text = msg.content || msg.text || '';
+      if (text) {
+        slots = adaptiveInterviewEngine.parsePatientInput(text, slots);
+      }
+    }
 
-    if (apiKey) {
+    const defaultSystemPrompt = isHi
+      ? `आप 'MediKiosk' अस्पताल के अनुभवी एआई डॉक्टर हैं। मरीज के मुख्य लक्षण को समझकर OLDCARTS (शुरुआत, दर्द का प्रकार, तीव्रता 1-10, फैलाव, संबंधित लक्षण) के अनुसार केवल एक (1) प्रासंगिक सवाल पूछें।
+नियम:
+- यदि मरीज पैर/घुटने/कमर के दर्द की बात करे, तो केवल पैर, जोड़ों, सूजन या चलने से संबंधित सवाल पूछें (सीने के दर्द का सवाल कभी न पूछें)।
+- यदि मरीज सीने के दर्द की बात करे, तभी दिल/छाती/पसीने से जुड़े सवाल पूछें।
+- केवल 1 संक्षिप्त प्रश्न पूछें।`
+      : `You are the 'MediKiosk' AI Clinical Doctor at triage. Based on the patient's primary complaint, ask exactly ONE (1) relevant clinical follow-up question.
+Rules:
+- If patient mentions leg/knee/joint pain, ask ONLY about leg/walking/swelling/stiffness (NEVER ask about chest/arm/heart unless patient mentions it).
+- If patient mentions chest pain, ask about cardiac symptoms.
+- Keep question to 1 focused sentence.`;
+
+    if (apiKey && apiKey.startsWith('AIzaSy')) {
       try {
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
@@ -31,7 +40,7 @@ Rules:
           systemInstruction: defaultSystemPrompt,
           generationConfig: {
             temperature: 0.3,
-            maxOutputTokens: 150,
+            maxOutputTokens: 120,
           },
         });
 
@@ -42,20 +51,17 @@ Rules:
 
         const result = await model.generateContent({ contents });
         const text = result.response.text();
-        if (text) {
+        if (text && text.trim().length > 0) {
           return NextResponse.json({ reply: text.trim(), provider: 'gemini-1.5-flash' });
         }
       } catch (geminiError: any) {
-        console.warn('[API Route /api/ai/chat] Gemini API error, returning clinical rule fallback:', geminiError?.message || geminiError);
+        console.warn('[API Route /api/ai/chat] Gemini API error, using tailored clinical rule engine:', geminiError?.message || geminiError);
       }
     }
 
-    // Fallback if API key has issues or network down
-    const fallbackReply = isHi
-      ? 'क्या यह दर्द बाएँ हाथ, कंधे या जबड़े की तरफ भी फैल रहा है, और क्या आपको पसीना आ रहा है?'
-      : 'Does this discomfort radiate to your left arm or jaw, and are you having any cold sweats?';
-
-    return NextResponse.json({ reply: fallbackReply, provider: 'clinical-rules-fallback' });
+    // Contextual, tailored fallback based on the actual parsed clinical slots
+    const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang, patientMessages.length);
+    return NextResponse.json({ reply: dynamicNext.questionText, provider: 'clinical-rules-engine' });
   } catch (error: any) {
     console.error('[API Route /api/ai/chat] General error:', error);
     return NextResponse.json({ error: 'Failed to process AI chat turn' }, { status: 500 });
