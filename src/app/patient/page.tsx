@@ -45,6 +45,7 @@ import { generateAndDownloadClinicalPDF } from '@/lib/pdf/pdf-generator';
 import { dataService } from '@/lib/supabase/service';
 import { mockDB } from '@/lib/supabase/mock-db';
 import { useAuth } from '@/lib/auth';
+import { groqProvider } from '@/lib/providers/groq';
 import { geminiProvider } from '@/lib/providers/gemini';
 import { Patient, Encounter, AISummary } from '@/types/clinical';
 
@@ -202,19 +203,22 @@ export default function PatientPortalPage() {
       setRecommendedSpecialty(updatedSlots.recommendedSpecialty);
     }
 
-    // 3. Generate empathetic doctor follow-up question (Gemini live LLM + Clinical Ontology Fallback)
+    // 3. Generate empathetic doctor follow-up question (Groq / Gemini live LLM + Clinical Ontology Fallback)
     (async () => {
       let nextQuestionText = '';
+      const chatHistory = newTurns.map(t => ({
+        role: (t.role === 'patient' ? 'user' : 'assistant') as 'user' | 'assistant',
+        content: t.content,
+      }));
+
       try {
-        if (geminiProvider.isAvailable()) {
-          const chatHistory = newTurns.map(t => ({
-            role: (t.role === 'patient' ? 'user' : 'assistant') as 'user' | 'assistant',
-            content: t.content,
-          }));
+        if (groqProvider.isAvailable()) {
+          nextQuestionText = await groqProvider.generateFollowUpQuestion(chatHistory, { language });
+        } else if (geminiProvider.isAvailable()) {
           nextQuestionText = await geminiProvider.generateFollowUpQuestion(chatHistory, { language });
         }
       } catch (e) {
-        console.warn('[Patient Portal] Gemini turn error:', e);
+        console.warn('[Patient Portal] AI provider turn error:', e);
       }
 
       if (!nextQuestionText) {
