@@ -1,27 +1,24 @@
 # MediKiosk — Checkpoints & Build Log
 
-This document tracks the checkpoint-by-checkpoint development and workflow redesign of the **MediKiosk** AI-Assisted Patient Intake & Doctor Appointment System.
+This document tracks the checkpoint-by-checkpoint development, fixes, and workflow updates of the **MediKiosk** AI-Assisted Patient Intake & Doctor Appointment System.
 
 ---
 
-## Workflow Redesign Milestones (5-Step Linear Architecture)
+## Patient Dashboard Fixes & Feature Completion Log
 
-| Change Request | Focus | Status | Verification Summary |
+| Fix ID | Feature Area | Status | Verification & Functional Highlights |
 |---|---|---|---|
-| **CR-01** | Remove all Hackathon / SIH / 26047 competition branding across repo | **Completed** | Full search & replace verified. Clean standalone product framing. |
-| **CR-02** | Reduce to Three Roles (Patient, Doctor, Admin) | **Completed** | Removed standalone Triage role. Folded emergency priority into Admin queue. |
-| **CR-03** | Step 1: Patient Voice-First AI Conversation & Clarifying MCQs | **Completed** | Hindi/English voice intake, clarifying MCQs, doc upload & recommended specialty. |
-| **CR-04** | Step 2: Admin Queue & Doctor Specialty Assignment | **Completed** | Live queue with emergency jump to top. Admin assigns matching specialty doctor. |
-| **CR-05** | Step 3: Doctor Review & Appointment Slot Proposal | **Completed** | Doctor reviews full pre-visit draft & timeline, proposes date/time slot. |
-| **CR-06** | Step 4: Admin Appointment Confirmation | **Completed** | Admin confirms proposed slot, pushes live to patient & logs audit trail. |
-| **CR-07** | Step 5: Patient Confirmed Appointment Card | **Completed** | Patient dashboard displays confirmed card with doctor name, time, location & directives. |
-| **CR-08** | Emergency Queue Jump Verification | **Completed** | Automated test verified emergency patient jumps ahead of first-come queue. |
-| **CR-09** | UI Simplification Pass | **Completed** | 3 clear landing options, continuous patient intake, streamlined doctor & admin views. |
+| **FIX-01** | Step 1: Adaptive Clinical AI Interview | **Completed & Verified** | Dynamic multi-turn OLDCARTS interview engine; parses chief complaint, severity, radiation, and red flags; supports Hindi/English voice and text; mid-conversation language switching tested live without losing state. |
+| **FIX-02** | Step 2: Ayurvedic Assessment (Trividha / Ashtavidha Pariksha) | **Completed & Verified** | Structured questionnaire covering Prakriti, Vikriti, Agni, Koshtha, Ahara-Vihara, and affected Dhatu; includes MCQ buttons + free-text input (voice/text) for each dimension. |
+| **FIX-03** | Step 3: Native Multi-Document Upload with OCR | **Completed & Verified** | Fixed file picker trigger (`input type="file" multiple`); supports uploading multiple PDFs, PNGs, JPGs in one session with live progress, categorization, and OCR entity extraction. |
+| **FIX-04** | Step 4: AI-Generated Downloadable Summary PDF | **Completed & Verified** | Professional, formatted PDF generator via `jspdf` including patient details, mandatory disclaimer banner, OLDCARTS narrative, source-attributed meds, OCR results, and Ayurvedic assessment; downloadable directly via button. |
+| **FIX-05** | Step 5: Complete Package Handoff to Admin Queue | **Completed & Verified** | Automatically submits complete package (interview + Ayush + docs + summary) to Admin triage queue with immediate emergency prioritization (ACS / chest pain triggers emergency fast-track). |
 
 ---
 
-## Verification Results
+## Automated Acceptance Test Suite
 
-- **TypeScript Compilation (`npm run typecheck`):** Code 0 (0 errors).
-- **End-to-End Test (`npm run test:e2e`):** All 6 steps passed with 100% success rate.
-- **Route Endpoints:** All routes (`/`, `/patient`, `/doctor`, `/admin`, `/auth/login`) return **HTTP 200 OK**.
+- **Test Command:** `npm run test:e2e` (`scripts/run-e2e-test.mjs`)
+- **Result:** 100% Pass across all 5 clinical stages + emergency queue jump.
+- **TypeScript Typecheck:** `npm run typecheck` passed with 0 errors (Code 0).
+- **Active Routes Status:** All routes (`/`, `/patient`, `/doctor`, `/admin`, `/auth/login`) return **HTTP 200 OK**.

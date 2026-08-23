@@ -41,10 +41,12 @@ export function generateStructuredClinicalSummary(input: SummaryGenerationInput)
     ? input.investigations.map(inv => `${inv.test_name}: ${inv.numeric_result || inv.text_result} ${inv.unit || ''} ${inv.is_abnormal ? '(ABNORMAL - Physician review recommended)' : '(Normal)'}`).join('; ')
     : 'Prior Lipid Profile (June 2025): Total Cholesterol 242 mg/dL, LDL 168 mg/dL (Elevated). STAT 12-lead ECG & Troponin I pending.';
 
-  const recommendedSpecialty = isAyushMode
-    ? 'Ayurveda & AYUSH'
-    : chiefComplaint.includes('chest') || character.includes('pressure')
+  const recommendedSpecialty = input.encounter?.recommended_specialty
+    ? input.encounter.recommended_specialty
+    : chiefComplaint.toLowerCase().includes('chest') || character.toLowerCase().includes('pressure')
     ? 'Cardiology'
+    : isAyushMode
+    ? 'Ayurveda & AYUSH'
     : 'General Medicine';
 
   const ayushText = isAyushMode
