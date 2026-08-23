@@ -45,6 +45,7 @@ import { generateAndDownloadClinicalPDF } from '@/lib/pdf/pdf-generator';
 import { dataService } from '@/lib/supabase/service';
 import { mockDB } from '@/lib/supabase/mock-db';
 import { useAuth } from '@/lib/auth';
+import { geminiProvider } from '@/lib/providers/gemini';
 import { Patient, Encounter, AISummary } from '@/types/clinical';
 
 export default function PatientPortalPage() {
@@ -196,17 +197,33 @@ export default function PatientPortalPage() {
       setRecommendedSpecialty(updatedSlots.recommendedSpecialty);
     }
 
-    // 3. Generate empathetic doctor follow-up question
-    setTimeout(() => {
-      const nextQuestion = adaptiveInterviewEngine.generateNextQuestion(
-        updatedSlots,
-        language,
-        newTurns.filter(t => t.role === 'patient').length
-      );
+    // 3. Generate empathetic doctor follow-up question (Gemini live LLM + Clinical Ontology Fallback)
+    (async () => {
+      let nextQuestionText = '';
+      try {
+        if (geminiProvider.isAvailable()) {
+          const chatHistory = newTurns.map(t => ({
+            role: (t.role === 'patient' ? 'user' : 'assistant') as 'user' | 'assistant',
+            content: t.content,
+          }));
+          nextQuestionText = await geminiProvider.generateFollowUpQuestion(chatHistory, { language });
+        }
+      } catch (e) {
+        console.warn('[Patient Portal] Gemini turn error:', e);
+      }
+
+      if (!nextQuestionText) {
+        const nextQ = adaptiveInterviewEngine.generateNextQuestion(
+          updatedSlots,
+          language,
+          newTurns.filter(t => t.role === 'patient').length
+        );
+        nextQuestionText = nextQ.questionText;
+      }
 
       const aiTurn: ClinicalConversationTurn = {
         role: 'ai',
-        content: nextQuestion.questionText,
+        content: nextQuestionText,
         timestamp: new Date().toISOString(),
         language,
       };
@@ -215,8 +232,8 @@ export default function PatientPortalPage() {
 
       // 4. Speak response via Web Speech TTS
       setIsSpeaking(true);
-      speechService.speak(nextQuestion.questionText, language, () => setIsSpeaking(false));
-    }, 600);
+      speechService.speak(nextQuestionText, language, () => setIsSpeaking(false));
+    })();
   };
 
   // FIX 3: Native Multi-Document Upload Handler
