@@ -9,7 +9,7 @@ This document tracks the checkpoint-by-checkpoint development of the **MediKiosk
 | Checkpoint | Description | Status | Verification Result |
 |---|---|---|---|
 | **CP-01** | Project scaffold: Next.js + TS + Tailwind + Lucide/UI, repo structure, documentation files | **Completed** | Full build & typecheck passed (Code 0), HTTP 200 OK on localhost:3000 |
-| **CP-02** | Supabase database schema, migrations, RLS policies, Auth setup | Pending | - |
+| **CP-02** | Supabase database schema, migrations, RLS policies, Auth setup | **Completed** | Live Supabase project wired, full_setup.sql migration ready, dataService integrated |
 | **CP-03** | Role system & protected routing per role (Patient, Doctor, Triage, Admin) | Pending | - |
 | **CP-04** | Patient kiosk shell: identify → language → consent | Pending | - |
 | **CP-05** | Clinical interview engine (ontology + adaptive logic, touch input) | Pending | - |

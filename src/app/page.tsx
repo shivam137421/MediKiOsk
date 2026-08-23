@@ -20,6 +20,7 @@ import {
   Bot
 } from 'lucide-react';
 import { mockDB } from '@/lib/supabase/mock-db';
+import { dataService } from '@/lib/supabase/service';
 
 export default function HomePage() {
   const [stats, setStats] = useState({
@@ -30,10 +31,10 @@ export default function HomePage() {
   });
 
   useEffect(() => {
-    const update = () => {
-      const patients = mockDB.getPatients();
-      const encounters = mockDB.getEncounters();
-      const alerts = mockDB.getTriageAlerts().filter(a => !a.is_acknowledged && a.severity === 'RED');
+    const update = async () => {
+      const patients = await dataService.getPatients();
+      const encounters = await dataService.getEncounters();
+      const alerts = (await dataService.getTriageAlerts()).filter(a => !a.is_acknowledged && a.severity === 'RED');
       const verified = mockDB.getState().aiSummaries.filter(s => s.is_verified);
       setStats({
         totalPatients: patients.length,

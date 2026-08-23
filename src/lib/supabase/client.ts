@@ -10,8 +10,11 @@ export function isSupabaseConfigured(): boolean {
 
 export function createClient() {
   if (!isSupabaseConfigured()) {
-    // Return null or proxy if not configured, UI will use mock-db
     return null;
   }
   return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
 }
+
+export const supabase = isSupabaseConfigured()
+  ? createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
+  : null;
