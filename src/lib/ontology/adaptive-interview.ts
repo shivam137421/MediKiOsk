@@ -238,9 +238,8 @@ export class AdaptiveClinicalInterviewEngine {
       (
         text.includes('bp') || text.includes('hypertension') || text.includes('sugar') ||
         text.includes('diabetes') || text.includes('uric') || text.includes('thyroid') ||
-        text.includes('heart') || text.includes('purani bimari') || text.includes('nhi') ||
-        text.includes('no') || text.includes('nahi') || text.includes('kuch nahi') ||
-        text.includes('koi nahi') || text.includes('none')
+        text.includes('heart') || text.includes('purani bimari') || text.includes('पुरानी बीमारी') ||
+        /\b(no|nahi|nhi|none|nil|kuch nahi|koi nahi)\b/.test(text) || text.includes('कोई बीमारी नहीं')
       )
     ) {
       slots.pastHistory?.push(latestText);
@@ -419,14 +418,44 @@ export class AdaptiveClinicalInterviewEngine {
       : 'Thank you, your clinical symptoms and medical history have been thoroughly recorded. Now proceeding to Step 2 for the Ayurvedic & Lifestyle Assessment.';
   }
 
-  public isClinicalIntakeComplete(slots: ExtractedClinicalSlots): boolean {
+  public isClosingStatement(text: string): boolean {
+    if (!text) return false;
+    const lower = text.toLowerCase();
+    return (
+      lower.includes('धन्यवाद') ||
+      lower.includes('दर्ज कर लिया') ||
+      lower.includes('तैयार कर लिया') ||
+      lower.includes('चरण 2') ||
+      lower.includes('आयुर्वेद') ||
+      lower.includes('step 2') ||
+      lower.includes('ayurvedic') ||
+      lower.includes('assessment') ||
+      lower.includes('proceed to') ||
+      lower.includes('recorded') ||
+      lower.includes('intake complete') ||
+      lower.includes('thank you')
+    );
+  }
+
+  public isClinicalIntakeComplete(slots: ExtractedClinicalSlots, patientTurnCount?: number): boolean {
+    // If patient has completed 4 turns, automatically complete to prevent interrogation fatigue
+    if (patientTurnCount && patientTurnCount >= 4) return true;
+
     const hasChiefComplaint = Boolean(slots.chiefComplaint && slots.chiefComplaint.trim().length > 0);
     const hasOnset = Boolean(slots.durationOnset && slots.durationOnset.trim().length > 0);
-    const hasCharacter = Boolean(slots.characterQuality && slots.characterQuality.trim().length > 0);
     const hasHistory = Boolean(slots.pastHistory && slots.pastHistory.length > 0);
-    const hasDetail = slots.severityNumber !== undefined || Boolean(slots.radiationLocation) || Boolean(slots.associatedSymptoms && slots.associatedSymptoms.length > 0);
+    const hasDetail =
+      slots.severityNumber !== undefined ||
+      Boolean(slots.characterQuality && slots.characterQuality.trim().length > 0) ||
+      Boolean(slots.radiationLocation) ||
+      Boolean(slots.associatedSymptoms && slots.associatedSymptoms.length > 0);
 
-    return hasChiefComplaint && hasOnset && hasCharacter && hasHistory && hasDetail;
+    // If chief complaint + onset + any details or history are present, intake is complete
+    if (hasChiefComplaint && hasOnset && (hasHistory || hasDetail)) {
+      return true;
+    }
+
+    return false;
   }
 }
 

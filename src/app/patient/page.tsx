@@ -207,6 +207,9 @@ export default function PatientPortalPage() {
     // 3. Generate empathetic doctor follow-up question (Groq / Gemini live LLM + Clinical Ontology Fallback)
     (async () => {
       let nextQuestionText = '';
+      let isIntakeComplete = false;
+      let mergedSlots = updatedSlots;
+
       const chatHistory = newTurns.map(t => ({
         role: (t.role === 'patient' ? 'user' : 'assistant') as 'user' | 'assistant',
         content: t.content,
@@ -214,9 +217,15 @@ export default function PatientPortalPage() {
 
       try {
         if (groqProvider.isAvailable()) {
-          nextQuestionText = await groqProvider.generateFollowUpQuestion(chatHistory, { language });
+          const result = await groqProvider.generateFollowUpQuestion(chatHistory, { language });
+          nextQuestionText = result.reply;
+          isIntakeComplete = result.isComplete;
+          if (result.slots) mergedSlots = { ...updatedSlots, ...result.slots };
         } else if (geminiProvider.isAvailable()) {
-          nextQuestionText = await geminiProvider.generateFollowUpQuestion(chatHistory, { language });
+          const result = await geminiProvider.generateFollowUpQuestion(chatHistory, { language });
+          nextQuestionText = result.reply;
+          isIntakeComplete = result.isComplete;
+          if (result.slots) mergedSlots = { ...updatedSlots, ...result.slots };
         }
       } catch (e) {
         console.warn('[Patient Portal] AI provider turn error:', e);
@@ -224,18 +233,24 @@ export default function PatientPortalPage() {
 
       if (!nextQuestionText) {
         const nextQ = adaptiveInterviewEngine.generateNextQuestion(
-          updatedSlots,
+          mergedSlots,
           language
         );
         nextQuestionText = nextQ.questionText;
+        if (nextQ.isReadyForStep2) isIntakeComplete = true;
       }
 
-      const isIntakeComplete = adaptiveInterviewEngine.isClinicalIntakeComplete(updatedSlots);
-
-      if (isIntakeComplete) {
+      // Explicit multi-signal completion check
+      const patientTurnCount = newTurns.filter(t => t.role === 'patient').length;
+      if (
+        isIntakeComplete ||
+        adaptiveInterviewEngine.isClinicalIntakeComplete(mergedSlots, patientTurnCount) ||
+        adaptiveInterviewEngine.isClosingStatement(nextQuestionText)
+      ) {
+        isIntakeComplete = true;
         setIsAutoAdvancing(true);
-        // If the model gave a general reply, ensure closing statement is clear
-        if (!nextQuestionText.includes('चरण') && !nextQuestionText.includes('Step 2') && !nextQuestionText.includes('धन्यवाद')) {
+        // Ensure closing text is crisp if not already
+        if (!adaptiveInterviewEngine.isClosingStatement(nextQuestionText)) {
           nextQuestionText = `${nextQuestionText} ${adaptiveInterviewEngine.getClosingStatement(language)}`;
         }
       }
@@ -248,25 +263,35 @@ export default function PatientPortalPage() {
       };
 
       setConversationTurns([...newTurns, aiTurn]);
+      setClinicalSlots(mergedSlots);
 
       // 4. Speak response via Indian Accent TTS & Auto-progress if complete
       setIsSpeaking(true);
       speechService.speak(nextQuestionText, language, () => {
         setIsSpeaking(false);
         if (isIntakeComplete) {
+          console.log('[Patient Portal] Intake complete, navigating to Step 2 (Ayurvedic Assessment)...');
           setTimeout(() => {
             setIsAutoAdvancing(false);
+            speechService.stopSpeaking();
             setActiveStep('ayush');
-          }, 1000);
+          }, 800);
         }
       });
 
-      // Safety fallback timer if TTS is interrupted or skipped
+      // Safety fallback timer if TTS is blocked/muted
       if (isIntakeComplete) {
         setTimeout(() => {
           setIsAutoAdvancing(false);
-          setActiveStep((prev) => (prev === 'talk' ? 'ayush' : prev));
-        }, 4500);
+          speechService.stopSpeaking();
+          setActiveStep((prev) => {
+            if (prev === 'talk') {
+              console.log('[Patient Portal] Safety timeout auto-advancing to Step 2 (Ayurvedic Assessment)');
+              return 'ayush';
+            }
+            return prev;
+          });
+        }, 4000);
       }
     })();
   };

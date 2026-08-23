@@ -1,5 +1,5 @@
 import Groq from 'groq-sdk';
-import { adaptiveInterviewEngine } from '@/lib/ontology/adaptive-interview';
+import { adaptiveInterviewEngine, ExtractedClinicalSlots } from '@/lib/ontology/adaptive-interview';
 
 export interface AIChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -12,6 +12,12 @@ export interface AICompletionOptions {
   maxTokens?: number;
   systemPrompt?: string;
   preferredModel?: string;
+}
+
+export interface AICompletionResult {
+  reply: string;
+  isComplete: boolean;
+  slots?: ExtractedClinicalSlots;
 }
 
 export class GroqAIProvider {
@@ -41,12 +47,12 @@ export class GroqAIProvider {
   public async generateFollowUpQuestion(
     history: AIChatMessage[],
     options: AICompletionOptions = {}
-  ): Promise<string> {
+  ): Promise<AICompletionResult> {
     const lang = options.language || 'hi';
     const isHi = lang === 'hi';
 
     // 1. Parse clinical slots from history
-    let slots = {};
+    let slots: ExtractedClinicalSlots = {};
     const patientMessages = history.filter(h => h.role === 'user');
     for (const msg of patientMessages) {
       slots = adaptiveInterviewEngine.parsePatientInput(msg.content, slots);
@@ -57,7 +63,7 @@ export class GroqAIProvider {
 नियम:
 - यदि मरीज पैर/घुटने/कमर के दर्द की बात करे, तो केवल पैर, जोड़ों, सूजन या चलने से संबंधित सवाल पूछें (सीने के दर्द का सवाल कभी न पूछें)।
 - यदि मरीज सीने के दर्द की बात करे, तभी दिल/छाती/पसीने से जुड़े सवाल पूछें।
-- उत्तर में केवल 1 संक्षिप्त प्रश्न पूछें (कोई भूमिका या लम्बी व्याख्या न दें)।`
+- उत्तर में केवल 1 संक्षिप्त प्रश्न पूछें (कोई भूमिका या व्याख्या न दें)।`
       : `You are the 'MediKiosk' AI Clinical Doctor at triage. Based on the patient's primary complaint, ask exactly ONE (1) relevant clinical follow-up question following the OLDCARTS framework.
 Rules:
 - If patient mentions leg/knee/joint pain, ask ONLY about leg/walking/swelling/stiffness (NEVER ask about chest/arm/heart unless patient mentions it).
@@ -73,7 +79,18 @@ Rules:
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.reply) return data.reply;
+        if (data.reply) {
+          const isComplete = Boolean(
+            data.isComplete ||
+            adaptiveInterviewEngine.isClinicalIntakeComplete(slots, patientMessages.length) ||
+            adaptiveInterviewEngine.isClosingStatement(data.reply)
+          );
+          return {
+            reply: data.reply,
+            isComplete,
+            slots: data.slots || slots,
+          };
+        }
       }
     } catch (fetchErr) {
       console.warn('[Groq Provider] Server API call error, trying direct client...', fetchErr);
@@ -106,15 +123,18 @@ Rules:
           const completion = await this.client.chat.completions.create({
             messages,
             model,
-            temperature: options.temperature ?? 0.3,
-            max_completion_tokens: options.maxTokens ?? 100,
+            temperature: 0.3,
+            max_completion_tokens: 100,
           });
 
           let text = completion.choices[0]?.message?.content?.trim() || '';
-          // Clean think tags or boilerplate
           text = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
           if (text) {
-            return text;
+            const isComplete = Boolean(
+              adaptiveInterviewEngine.isClinicalIntakeComplete(slots, patientMessages.length) ||
+              adaptiveInterviewEngine.isClosingStatement(text)
+            );
+            return { reply: text, isComplete, slots };
           }
         } catch (err: any) {
           console.warn(`[Groq Provider] Model ${model} failed, trying next candidate:`, err?.message || err);
@@ -124,7 +144,15 @@ Rules:
 
     // 4. Guaranteed Dynamic Question from parsed clinical information gaps
     const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang);
-    return dynamicNext.questionText;
+    const isComplete = Boolean(
+      dynamicNext.isReadyForStep2 ||
+      adaptiveInterviewEngine.isClinicalIntakeComplete(slots, patientMessages.length)
+    );
+    return {
+      reply: dynamicNext.questionText,
+      isComplete,
+      slots,
+    };
   }
 }
 

@@ -28,12 +28,15 @@ export async function POST(req: NextRequest) {
 नियम:
 - यदि मरीज पैर/घुटने/कमर के दर्द की बात करे, तो केवल पैर, जोड़ों, सूजन या चलने से संबंधित सवाल पूछें (सीने के दर्द का सवाल कभी न पूछें)।
 - यदि मरीज सीने के दर्द की बात करे, तभी दिल/छाती/पसीने से जुड़े सवाल पूछें।
-- उत्तर में केवल 1 संक्षिप्त, स्पष्ट प्रश्न पूछें (कोई भूमिका या लम्बी व्याख्या न दें)।`
+- उत्तर में केवल 1 संक्षिप्त, स्पष्ट प्रश्न पूछें। यदि मरीज की पूरी समस्या समझ आ चुकी हो, तो संक्षेप में पुष्टि करें कि रिकॉर्ड तैयार है और चरण 2 (आयुर्वेद परीक्षा) पर आगे बढ़ रहे हैं।`
       : `You are the 'MediKiosk' AI Clinical Doctor at triage. Based on the patient's primary complaint, ask exactly ONE (1) relevant clinical follow-up question following the OLDCARTS framework.
 Rules:
 - If patient mentions leg/knee/joint pain, ask ONLY about leg/walking/swelling/stiffness (NEVER ask about chest/arm/heart unless patient mentions it).
 - If patient mentions chest pain, ask about cardiac symptoms.
-- Keep question to 1 focused, empathetic sentence with no extra fluff.`;
+- Keep question to 1 focused, empathetic sentence. If enough information is gathered, conclude that the intake is recorded and moving to Step 2.`;
+
+    let reply = '';
+    let usedProvider = 'clinical-rules-engine';
 
     // --------------------------------------------------------------------------
     // 1. GROQ PROVIDER (Primary / Active)
@@ -67,10 +70,12 @@ Rules:
               max_completion_tokens: 100,
             });
 
-            let reply = completion.choices[0]?.message?.content?.trim() || '';
-            reply = reply.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-            if (reply) {
-              return NextResponse.json({ reply, provider: `groq (${model})` });
+            let text = completion.choices[0]?.message?.content?.trim() || '';
+            text = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+            if (text) {
+              reply = text;
+              usedProvider = `groq (${model})`;
+              break;
             }
           } catch (modelErr: any) {
             console.warn(`[Groq Model ${model}]:`, modelErr?.message || modelErr);
@@ -84,7 +89,7 @@ Rules:
     // --------------------------------------------------------------------------
     // 2. GEMINI PROVIDER (If active)
     // --------------------------------------------------------------------------
-    if (activeProvider === 'gemini' && geminiKey.length > 10) {
+    if (!reply && activeProvider === 'gemini' && geminiKey.length > 10) {
       try {
         const ai = new GoogleGenAI({ apiKey: geminiKey });
         const contents = (history || []).map((h: any) => ({
@@ -104,7 +109,8 @@ Rules:
 
         const text = result.text;
         if (text && text.trim().length > 0) {
-          return NextResponse.json({ reply: text.trim(), provider: 'gemini-1.5-flash' });
+          reply = text.trim();
+          usedProvider = 'gemini-1.5-flash';
         }
       } catch (geminiError: any) {
         console.warn('[API Route /api/ai/chat] Google GenAI response:', geminiError?.message || geminiError);
@@ -114,8 +120,30 @@ Rules:
     // --------------------------------------------------------------------------
     // 3. CLINICAL ONTOLOGY FALLBACK
     // --------------------------------------------------------------------------
-    const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang);
-    return NextResponse.json({ reply: dynamicNext.questionText, provider: 'clinical-rules-engine' });
+    if (!reply) {
+      const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang);
+      reply = dynamicNext.questionText;
+      usedProvider = 'clinical-rules-engine';
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. STRUCTURED COMPLETION SIGNAL EVALUATION
+    // --------------------------------------------------------------------------
+    const isComplete =
+      adaptiveInterviewEngine.isClinicalIntakeComplete(slots, patientMessages.length) ||
+      adaptiveInterviewEngine.isClosingStatement(reply);
+
+    // If complete and reply lacks explicit closing remark, append clear closing
+    if (isComplete && !adaptiveInterviewEngine.isClosingStatement(reply)) {
+      reply = `${reply} ${adaptiveInterviewEngine.getClosingStatement(lang)}`;
+    }
+
+    return NextResponse.json({
+      reply,
+      isComplete,
+      provider: usedProvider,
+      slots,
+    });
   } catch (error: any) {
     console.error('[API Route /api/ai/chat] General error:', error);
     return NextResponse.json({ error: 'Failed to process AI chat turn' }, { status: 500 });
