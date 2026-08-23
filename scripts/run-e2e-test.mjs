@@ -33,7 +33,7 @@ async function runCompletePatientDashboardE2ETest() {
     recommendedSpecialty: slots.recommendedSpecialty,
   });
 
-  const q1 = adaptiveInterviewEngine.generateNextQuestion(slots, 'hi', 1);
+  const q1 = adaptiveInterviewEngine.generateNextQuestion(slots, 'hi');
   console.log(`AI Doctor Follow-up (Hindi): "${q1.questionText}"`);
 
   // Turn 2: Switch language to English mid-conversation & reply with severity and radiation
@@ -46,7 +46,7 @@ async function runCompletePatientDashboardE2ETest() {
     radiationLocation: slots.radiationLocation,
   });
 
-  const q2 = adaptiveInterviewEngine.generateNextQuestion(slots, 'en', 2);
+  const q2 = adaptiveInterviewEngine.generateNextQuestion(slots, 'en');
   console.log(`AI Doctor Follow-up (English): "${q2.questionText}"`);
 
   // Turn 3: Add sweating and hypertension history

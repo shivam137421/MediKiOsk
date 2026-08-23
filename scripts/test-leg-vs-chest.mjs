@@ -17,17 +17,17 @@ console.log('Parsed Slots for Leg Pain:', {
   recommendedSpecialty: legSlots.recommendedSpecialty,
 });
 
-const legQ1 = adaptiveInterviewEngine.generateNextQuestion(legSlots, 'hi', 1);
+const legQ1 = adaptiveInterviewEngine.generateNextQuestion(legSlots, 'hi');
 console.log(`\nAI Follow-up 1 (Hindi): "${legQ1.questionText}"`);
 
 // Turn 2: Patient says it is for 2 days after walking
 legSlots = adaptiveInterviewEngine.parsePatientInput('2 din se chalne ke baad ho raha hai', legSlots);
-const legQ2 = adaptiveInterviewEngine.generateNextQuestion(legSlots, 'hi', 2);
+const legQ2 = adaptiveInterviewEngine.generateNextQuestion(legSlots, 'hi');
 console.log(`AI Follow-up 2 (Hindi): "${legQ2.questionText}"`);
 
 // Turn 3: Patient gives severity 7/10
 legSlots = adaptiveInterviewEngine.parsePatientInput('dard 7/10 hai aur pindli me aithan hai', legSlots);
-const legQ3 = adaptiveInterviewEngine.generateNextQuestion(legSlots, 'hi', 3);
+const legQ3 = adaptiveInterviewEngine.generateNextQuestion(legSlots, 'hi');
 console.log(`AI Follow-up 3 (Hindi): "${legQ3.questionText}"`);
 
 const isLegFollowUpRelevant = 
@@ -57,11 +57,11 @@ console.log('Parsed Slots for Chest Pain:', {
   recommendedSpecialty: chestSlots.recommendedSpecialty,
 });
 
-const chestQ1 = adaptiveInterviewEngine.generateNextQuestion(chestSlots, 'hi', 1);
+const chestQ1 = adaptiveInterviewEngine.generateNextQuestion(chestSlots, 'hi');
 console.log(`\nAI Follow-up 1 (Hindi): "${chestQ1.questionText}"`);
 
 chestSlots = adaptiveInterviewEngine.parsePatientInput('1 ghante se hai', chestSlots);
-const chestQ2 = adaptiveInterviewEngine.generateNextQuestion(chestSlots, 'hi', 2);
+const chestQ2 = adaptiveInterviewEngine.generateNextQuestion(chestSlots, 'hi');
 console.log(`AI Follow-up 2 (Hindi): "${chestQ2.questionText}"`);
 
 const isChestFollowUpRelevant = 

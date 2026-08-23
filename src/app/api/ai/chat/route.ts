@@ -60,7 +60,7 @@ Rules:
     }
 
     // Contextual, tailored fallback based on the actual parsed clinical slots
-    const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang, patientMessages.length);
+    const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang);
     return NextResponse.json({ reply: dynamicNext.questionText, provider: 'clinical-rules-engine' });
   } catch (error: any) {
     console.error('[API Route /api/ai/chat] General error:', error);

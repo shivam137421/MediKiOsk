@@ -117,7 +117,7 @@ export default function PatientPortalPage() {
     setLanguage(newLang);
     // If in conversation, generate the next prompt in the newly selected language
     if (activeStep === 'talk' && conversationTurns.length > 0) {
-      const nextQ = adaptiveInterviewEngine.generateNextQuestion(clinicalSlots, newLang, conversationTurns.length);
+      const nextQ = adaptiveInterviewEngine.generateNextQuestion(clinicalSlots, newLang);
       const updated = [
         ...conversationTurns,
         {
@@ -220,8 +220,7 @@ export default function PatientPortalPage() {
       if (!nextQuestionText) {
         const nextQ = adaptiveInterviewEngine.generateNextQuestion(
           updatedSlots,
-          language,
-          newTurns.filter(t => t.role === 'patient').length
+          language
         );
         nextQuestionText = nextQ.questionText;
       }

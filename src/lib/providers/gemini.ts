@@ -107,7 +107,7 @@ Rules:
     }
 
     // 4. Guaranteed Dynamic Question from parsed clinical slots
-    const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang, patientMessages.length);
+    const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang);
     return dynamicNext.questionText;
   }
 }
