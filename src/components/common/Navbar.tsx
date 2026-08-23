@@ -16,11 +16,11 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { DEMO_USERS, mockDB } from '@/lib/supabase/mock-db';
-import { DemoUserProfile } from '@/types/clinical';
+import { useAuth } from '@/lib/auth';
 
 export function Navbar() {
   const pathname = usePathname();
-  const [currentUser, setCurrentUser] = useState<DemoUserProfile>(DEMO_USERS[0]);
+  const { currentUser, setCurrentUser } = useAuth();
   const [activeAlertsCount, setActiveAlertsCount] = useState<number>(0);
   const [showUserDropdown, setShowUserDropdown] = useState<boolean>(false);
 

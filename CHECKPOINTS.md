@@ -10,10 +10,10 @@ This document tracks the checkpoint-by-checkpoint development of the **MediKiosk
 |---|---|---|---|
 | **CP-01** | Project scaffold: Next.js + TS + Tailwind + Lucide/UI, repo structure, documentation files | **Completed** | Full build & typecheck passed (Code 0), HTTP 200 OK on localhost:3000 |
 | **CP-02** | Supabase database schema, migrations, RLS policies, Auth setup | **Completed** | Live Supabase project wired, full_setup.sql migration ready, dataService integrated |
-| **CP-03** | Role system & protected routing per role (Patient, Doctor, Triage, Admin) | Pending | - |
-| **CP-04** | Patient kiosk shell: identify → language → consent | Pending | - |
-| **CP-05** | Clinical interview engine (ontology + adaptive logic, touch input) | Pending | - |
-| **CP-06** | Voice integration (ASR/TTS, provider-abstracted) | Pending | - |
+| **CP-03** | Role system & protected routing per role (Patient, Doctor, Triage, Admin) | **Completed** | RBAC AuthProvider, RoleGuard, and /auth/login portal with 1-click switcher |
+| **CP-04** | Patient kiosk shell: identify → language → consent | **Completed** | ABHA ID, 1-click demo patients, Hindi/English toggle, audible consent |
+| **CP-05** | Clinical interview engine (ontology + adaptive logic, touch input) | **Completed** | Multi-branch symptom tree (Chest pain, Joint pain/AYUSH, Fever), 1-10 severity slider, red-flag checks |
+| **CP-06** | Voice integration (ASR/TTS, provider-abstracted) | **Completed** | Web Speech API speech-to-text, TTS question audio prompts, soundwave visualizer |
 | **CP-07** | Document upload + storage + OCR pipeline (provider-abstracted) | Pending | - |
 | **CP-08** | Medical entity extraction + confidence validation layer | Pending | - |
 | **CP-09** | Medical timeline engine | Pending | - |

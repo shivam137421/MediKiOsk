@@ -44,7 +44,7 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['profiles']['Row'], 'created_at' | 'updated_at'>;
+        Insert: Omit<Database['public']['Tables']['profiles']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['profiles']['Insert']>;
       };
       departments: {
@@ -56,7 +56,7 @@ export interface Database {
           description: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['departments']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['departments']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['departments']['Insert']>;
       };
       kiosks: {
@@ -69,7 +69,7 @@ export interface Database {
           current_encounter_id: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['kiosks']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['kiosks']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['kiosks']['Insert']>;
       };
       patients: {
@@ -89,7 +89,7 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['patients']['Row'], 'created_at' | 'updated_at'>;
+        Insert: Omit<Database['public']['Tables']['patients']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['patients']['Insert']>;
       };
       encounters: {
@@ -110,7 +110,7 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['encounters']['Row'], 'created_at' | 'updated_at'>;
+        Insert: Omit<Database['public']['Tables']['encounters']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['encounters']['Insert']>;
       };
       consents: {
@@ -127,7 +127,7 @@ export interface Database {
           ip_hash: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['consents']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['consents']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['consents']['Insert']>;
       };
       interview_sessions: {
@@ -142,7 +142,7 @@ export interface Database {
           completed_at: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['interview_sessions']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['interview_sessions']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['interview_sessions']['Insert']>;
       };
       interview_answers: {
@@ -159,7 +159,7 @@ export interface Database {
           confidence: number;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['interview_answers']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['interview_answers']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['interview_answers']['Insert']>;
       };
       documents: {
@@ -177,7 +177,7 @@ export interface Database {
           confidence: number | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['documents']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['documents']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['documents']['Insert']>;
       };
       document_extractions: {
@@ -191,7 +191,7 @@ export interface Database {
           confidence_tier: 'high' | 'needs_review' | 'low';
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['document_extractions']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['document_extractions']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['document_extractions']['Insert']>;
       };
       medications: {
@@ -210,7 +210,7 @@ export interface Database {
           doctor_notes: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['medications']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['medications']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['medications']['Insert']>;
       };
       allergies: {
@@ -226,7 +226,7 @@ export interface Database {
           verification_state: VerificationState;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['allergies']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['allergies']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['allergies']['Insert']>;
       };
       investigations: {
@@ -245,7 +245,7 @@ export interface Database {
           source_document_id: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['investigations']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['investigations']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['investigations']['Insert']>;
       };
       timeline_events: {
@@ -261,7 +261,7 @@ export interface Database {
           source_document_id: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['timeline_events']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['timeline_events']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['timeline_events']['Insert']>;
       };
       triage_alerts: {
@@ -278,7 +278,7 @@ export interface Database {
           action_taken: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['triage_alerts']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['triage_alerts']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['triage_alerts']['Insert']>;
       };
       ai_summaries: {
@@ -301,7 +301,7 @@ export interface Database {
           doctor_edited_summary: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['ai_summaries']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['ai_summaries']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['ai_summaries']['Insert']>;
       };
       ai_suggestions: {
@@ -315,7 +315,7 @@ export interface Database {
           doctor_feedback: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['ai_suggestions']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['ai_suggestions']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['ai_suggestions']['Insert']>;
       };
       ayush_assessments: {
@@ -333,7 +333,7 @@ export interface Database {
           ahara_vihara_notes: string | null;
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['ayush_assessments']['Row'], 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['ayush_assessments']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['ayush_assessments']['Insert']>;
       };
       audit_logs: {
