@@ -1,37 +1,107 @@
-import { Patient, Encounter, Consent, InterviewAnswer, Document, DocumentExtraction, Medication, Allergy, Investigation, TimelineEvent, TriageAlert, AISummary, AISuggestion, AyushAssessment, AuditLog, DemoUserProfile } from '@/types/clinical';
+import { 
+  Patient, 
+  Encounter, 
+  Consent, 
+  Document, 
+  Medication, 
+  Allergy, 
+  Investigation, 
+  TimelineEvent, 
+  TriageAlert, 
+  AISummary, 
+  AISuggestion, 
+  AyushAssessment, 
+  AuditLog, 
+  UserProfile 
+} from '@/types/clinical';
 import { UserRole } from '@/types/database';
 
-export const DEMO_USERS: DemoUserProfile[] = [
-  { id: 'usr-doc-01', role: 'doctor', name: 'Dr. Ananya Sen, MD (Med)', department: 'Cardiology & Internal Medicine', badge: 'Attending Physician' },
-  { id: 'usr-doc-02', role: 'doctor', name: 'Vaidya Harishankar Sharma, BAMS MD', department: 'Ayurveda & Panchakarma', badge: 'AYUSH Specialist' },
-  { id: 'usr-tri-01', role: 'triage', name: 'Nurse Rajesh Kumar, BSc (N)', department: 'Emergency & Triage', badge: 'Senior Triage Officer' },
-  { id: 'usr-adm-01', role: 'admin', name: 'Vikramaditya Verma', department: 'Hospital Administration', badge: 'System Administrator' },
-  { id: 'usr-pat-01', role: 'patient', name: 'Aarav Sharma', badge: 'Patient (Self-Checkin)' },
-];
-
-export interface MockDatabaseState {
-  patients: Patient[];
-  encounters: Encounter[];
-  consents: Consent[];
-  interviewAnswers: InterviewAnswer[];
-  documents: Document[];
-  documentExtractions: DocumentExtraction[];
-  medications: Medication[];
-  allergies: Allergy[];
-  investigations: Investigation[];
-  timelineEvents: TimelineEvent[];
-  triageAlerts: TriageAlert[];
-  aiSummaries: AISummary[];
-  aiSuggestions: AISuggestion[];
-  ayushAssessments: AyushAssessment[];
-  auditLogs: AuditLog[];
-  systemSettings: Record<string, any>;
+export interface DoctorStaff {
+  id: string;
+  name: string;
+  specialty: string;
+  department: string;
+  experienceYears: number;
+  available: boolean;
+  avatarInitials: string;
 }
 
-// Initial Realistic Clinical Demo Data
-const initialPatients: Patient[] = [
+export const AVAILABLE_DOCTORS: DoctorStaff[] = [
   {
-    id: 'pat-001',
+    id: 'usr-doc-01',
+    name: 'Dr. Arvind Sen, MD DM',
+    specialty: 'Cardiology',
+    department: 'Cardiology & Internal Medicine',
+    experienceYears: 16,
+    available: true,
+    avatarInitials: 'AS',
+  },
+  {
+    id: 'usr-doc-02',
+    name: 'Dr. Sunita Mehra, MD',
+    specialty: 'General Medicine',
+    department: 'General Medicine & Diabetology',
+    experienceYears: 12,
+    available: true,
+    avatarInitials: 'SM',
+  },
+  {
+    id: 'usr-doc-03',
+    name: 'Dr. Rajesh Sharma, BAMS MD',
+    specialty: 'Ayurveda & AYUSH',
+    department: 'Ayurveda & Panchakarma',
+    experienceYears: 14,
+    available: true,
+    avatarInitials: 'RS',
+  },
+  {
+    id: 'usr-doc-04',
+    name: 'Dr. Priya Nair, MD (Derm)',
+    specialty: 'Dermatology',
+    department: 'Dermatology & Skin Care',
+    experienceYears: 9,
+    available: true,
+    avatarInitials: 'PN',
+  },
+];
+
+export const MOCK_USERS: UserProfile[] = [
+  {
+    id: 'a1111111-1111-1111-1111-111111111111',
+    role: 'patient',
+    full_name: 'Aarav Sharma',
+    email: 'aarav.sharma@example.in',
+    phone: '+91 98765 43210',
+    department_id: null,
+    license_number: null,
+    is_active: true,
+  },
+  {
+    id: 'usr-doc-01',
+    role: 'doctor',
+    full_name: 'Dr. Arvind Sen, MD DM',
+    email: 'arvind.sen@hospital.in',
+    phone: '+91 98111 22334',
+    department_id: 'd1111111-1111-1111-1111-111111111111',
+    specialty: 'Cardiology',
+    license_number: 'MCI-DEL-2012-9842',
+    is_active: true,
+  },
+  {
+    id: 'usr-adm-01',
+    role: 'admin',
+    full_name: 'Vikram Joshi',
+    email: 'admin.vikram@hospital.in',
+    phone: '+91 98999 88776',
+    department_id: 'd1111111-1111-1111-1111-111111111111',
+    license_number: null,
+    is_active: true,
+  },
+];
+
+export const INITIAL_PATIENTS: Patient[] = [
+  {
+    id: 'a1111111-1111-1111-1111-111111111111',
     abha_id: '91-4829-1029-4821',
     demo_id: 'DEMO-P001',
     full_name: 'Aarav Sharma',
@@ -43,11 +113,10 @@ const initialPatients: Patient[] = [
     address: 'Sector 14, Rohini, New Delhi 110085',
     emergency_contact_name: 'Sunita Sharma (Spouse)',
     emergency_contact_phone: '+91 98765 43211',
-    created_at: new Date(Date.now() - 3600000 * 3).toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
   },
   {
-    id: 'pat-002',
+    id: 'a2222222-2222-2222-2222-222222222222',
     abha_id: '91-8841-3920-5819',
     demo_id: 'DEMO-P002',
     full_name: 'Radha Devi',
@@ -59,11 +128,10 @@ const initialPatients: Patient[] = [
     address: 'Laxmi Nagar, East Delhi 110092',
     emergency_contact_name: 'Amit Kumar (Son)',
     emergency_contact_phone: '+91 98112 34568',
-    created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: new Date(Date.now() - 3600000 * 48).toISOString(),
   },
   {
-    id: 'pat-003',
+    id: 'a3333333-3333-3333-3333-333333333333',
     abha_id: '91-3312-9012-4411',
     demo_id: 'DEMO-P003',
     full_name: 'Ramesh Verma',
@@ -75,551 +143,599 @@ const initialPatients: Patient[] = [
     address: 'Aliganj, Lucknow, UP 226024',
     emergency_contact_name: 'Meena Verma (Spouse)',
     emergency_contact_phone: '+91 94550 12346',
-    created_at: new Date(Date.now() - 3600000 * 8).toISOString(),
-    updated_at: new Date().toISOString(),
-  }
+    created_at: new Date(Date.now() - 3600000 * 72).toISOString(),
+  },
 ];
 
-const initialEncounters: Encounter[] = [
+export const INITIAL_ENCOUNTERS: Encounter[] = [
   {
-    id: 'enc-001',
-    patient_id: 'pat-001',
-    kiosk_id: 'kiosk-01',
-    department_id: 'dept-cardio',
-    attending_doctor_id: 'usr-doc-01',
-    triage_nurse_id: 'usr-tri-01',
-    status: 'ready_for_doctor',
-    priority: 'RED',
+    id: 'e1111111-1111-1111-1111-111111111111',
+    patient_id: 'a1111111-1111-1111-1111-111111111111',
+    kiosk_id: '11111111-1111-1111-1111-111111111111',
+    department_id: 'd1111111-1111-1111-1111-111111111111',
+    recommended_specialty: 'Cardiology',
+    assigned_doctor_id: 'usr-doc-01',
+    proposed_appointment_time: 'Today, 03:30 PM',
+    confirmed_appointment_time: 'Today, 03:30 PM',
+    appointment_mode: 'in_person',
+    appointment_location: 'Cardiology OPD Suite 204',
+    doctor_proposed_notes: 'Urgent cardiac evaluation required due to substernal pressure and diaphoresis.',
+    admin_confirmation_notes: 'Priority confirmed by Admin. Patient alerted.',
+    status: 'appointment_confirmed',
+    priority: 'EMERGENCY',
+    is_emergency: true,
+    emergency_rationale: 'Acute substernal chest pressure (8/10) radiating to left arm + profuse diaphoresis.',
     is_ayush_encounter: false,
-    chief_complaint_summary: 'Substernal chest pressure radiating to left shoulder for 2 hours, diaphoresis',
-    intake_started_at: new Date(Date.now() - 1800000).toISOString(),
-    intake_completed_at: new Date(Date.now() - 600000).toISOString(),
+    chief_complaint_summary: 'Substernal chest pressure radiating to left arm with diaphoresis (Severity: 8/10)',
+    intake_started_at: new Date(Date.now() - 3600000 * 2).toISOString(),
+    intake_completed_at: new Date(Date.now() - 3600000 * 1.5).toISOString(),
     consultation_completed_at: null,
-    created_at: new Date(Date.now() - 1800000).toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
   },
   {
-    id: 'enc-002',
-    patient_id: 'pat-002',
-    kiosk_id: 'kiosk-02',
-    department_id: 'dept-general',
-    attending_doctor_id: 'usr-doc-01',
-    triage_nurse_id: 'usr-tri-01',
-    status: 'ready_for_doctor',
-    priority: 'YELLOW',
+    id: 'e2222222-2222-2222-2222-222222222222',
+    patient_id: 'a2222222-2222-2222-2222-222222222222',
+    kiosk_id: '22222222-2222-2222-2222-222222222222',
+    department_id: 'd2222222-2222-2222-2222-222222222222',
+    recommended_specialty: 'General Medicine',
+    assigned_doctor_id: null,
+    proposed_appointment_time: null,
+    confirmed_appointment_time: null,
+    appointment_mode: null,
+    appointment_location: null,
+    doctor_proposed_notes: null,
+    admin_confirmation_notes: null,
+    status: 'submitted_waiting_assignment',
+    priority: 'AMBER',
+    is_emergency: false,
+    emergency_rationale: null,
     is_ayush_encounter: false,
-    chief_complaint_summary: 'Uncontrolled blood sugars, persistent fatigue, burning sensation in feet for 3 weeks',
-    intake_started_at: new Date(Date.now() - 3600000).toISOString(),
-    intake_completed_at: new Date(Date.now() - 2400000).toISOString(),
+    chief_complaint_summary: 'Uncontrolled blood sugars, persistent fatigue, and burning feet sensation for 3 weeks',
+    intake_started_at: new Date(Date.now() - 3600000 * 4).toISOString(),
+    intake_completed_at: new Date(Date.now() - 3600000 * 3.5).toISOString(),
     consultation_completed_at: null,
-    created_at: new Date(Date.now() - 3600000).toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
   },
   {
-    id: 'enc-003',
-    patient_id: 'pat-003',
-    kiosk_id: 'kiosk-03',
-    department_id: 'dept-ayush',
-    attending_doctor_id: 'usr-doc-02',
-    triage_nurse_id: null,
-    status: 'ready_for_doctor',
+    id: 'e3333333-3333-3333-3333-333333333333',
+    patient_id: 'a3333333-3333-3333-3333-333333333333',
+    kiosk_id: '33333333-3333-3333-3333-333333333333',
+    department_id: 'd3333333-3333-3333-3333-333333333333',
+    recommended_specialty: 'Ayurveda & AYUSH',
+    assigned_doctor_id: 'usr-doc-03',
+    proposed_appointment_time: 'Tomorrow, 11:00 AM',
+    confirmed_appointment_time: null,
+    appointment_mode: 'in_person',
+    appointment_location: 'AYUSH OPD Room 102',
+    doctor_proposed_notes: 'Joint examination and Sandhigata Vata panchakarma assessment.',
+    admin_confirmation_notes: null,
+    status: 'appointment_proposed',
     priority: 'GREEN',
+    is_emergency: false,
+    emergency_rationale: null,
     is_ayush_encounter: true,
-    chief_complaint_summary: 'Bilateral knee pain, early morning stiffness, aggravated in cold weather (Sandhigata Vata)',
-    intake_started_at: new Date(Date.now() - 7200000).toISOString(),
-    intake_completed_at: new Date(Date.now() - 5400000).toISOString(),
+    chief_complaint_summary: 'Bilateral knee joint pain, stiffness, and difficulty walking (Sandhigata Vata)',
+    intake_started_at: new Date(Date.now() - 3600000 * 6).toISOString(),
+    intake_completed_at: new Date(Date.now() - 3600000 * 5.5).toISOString(),
     consultation_completed_at: null,
-    created_at: new Date(Date.now() - 7200000).toISOString(),
-    updated_at: new Date().toISOString(),
-  }
-];
-
-const initialTriageAlerts: TriageAlert[] = [
-  {
-    id: 'tri-001',
-    encounter_id: 'enc-001',
-    patient_id: 'pat-001',
-    severity: 'RED',
-    trigger_symptom: 'Crushing chest pressure radiating to left arm + profuse sweating',
-    clinical_rationale: 'Suspected Acute Coronary Syndrome (ACS). Immediate ECG and physician evaluation required.',
-    is_acknowledged: true,
-    acknowledged_by: 'usr-tri-01',
-    acknowledged_at: new Date(Date.now() - 900000).toISOString(),
-    action_taken: 'ECG ordered, wheel-chaired to Emergency Resuscitation Bay 2',
-    created_at: new Date(Date.now() - 1200000).toISOString(),
-  }
-];
-
-const initialMedications: Medication[] = [
-  {
-    id: 'med-001',
-    encounter_id: 'enc-001',
-    patient_id: 'pat-001',
-    name: 'Tab Telmisartan',
-    dosage: '40 mg',
-    frequency: 'Once Daily (Morning)',
-    duration: 'Ongoing (2 years)',
-    route: 'Oral',
-    source: 'patient_stated',
-    source_document_id: null,
-    verification_state: 'needs_review',
-    doctor_notes: null,
-    created_at: new Date().toISOString(),
+    created_at: new Date(Date.now() - 3600000 * 6).toISOString(),
   },
-  {
-    id: 'med-002',
-    encounter_id: 'enc-001',
-    patient_id: 'pat-001',
-    name: 'Tab Atorvastatin',
-    dosage: '20 mg',
-    frequency: 'Once Daily (Night)',
-    duration: 'Ongoing (1 year)',
-    route: 'Oral',
-    source: 'document_ocr',
-    source_document_id: 'doc-001',
-    verification_state: 'needs_review',
-    doctor_notes: null,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'med-003',
-    encounter_id: 'enc-002',
-    patient_id: 'pat-002',
-    name: 'Tab Metformin',
-    dosage: '500 mg',
-    frequency: 'Twice Daily (After meals)',
-    duration: '3 years',
-    route: 'Oral',
-    source: 'document_ocr',
-    source_document_id: 'doc-002',
-    verification_state: 'needs_review',
-    doctor_notes: null,
-    created_at: new Date().toISOString(),
-  }
-];
-
-const initialAllergies: Allergy[] = [
-  {
-    id: 'alg-001',
-    encounter_id: 'enc-001',
-    patient_id: 'pat-001',
-    allergen: 'Penicillin (Amoxicillin)',
-    category: 'drug',
-    reaction: 'Urticaria and facial angioedema',
-    severity: 'severe',
-    source: 'patient_stated',
-    verification_state: 'needs_review',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'alg-002',
-    encounter_id: 'enc-002',
-    patient_id: 'pat-002',
-    allergen: 'Sulfa Drugs (Cotrimoxazole)',
-    category: 'drug',
-    reaction: 'Maculopapular rash',
-    severity: 'moderate',
-    source: 'patient_stated',
-    verification_state: 'needs_review',
-    created_at: new Date().toISOString(),
-  }
-];
-
-const initialTimelineEvents: TimelineEvent[] = [
-  {
-    id: 'tl-001',
-    encounter_id: 'enc-001',
-    patient_id: 'pat-001',
-    event_date: '2022-04-10',
-    title: 'Hypertension Diagnosed',
-    description: 'Diagnosed at Max Super Speciality Hospital. Started on Tab Telmisartan 40mg.',
-    event_type: 'diagnosis',
-    source: 'patient_stated',
-    source_document_id: null,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'tl-002',
-    encounter_id: 'enc-001',
-    patient_id: 'pat-001',
-    event_date: '2025-06-15',
-    title: 'Lipid Profile Investigation',
-    description: 'Total Cholesterol: 242 mg/dL, LDL: 168 mg/dL (Elevated). Started on Atorvastatin.',
-    event_type: 'lab_test',
-    source: 'document_ocr',
-    source_document_id: 'doc-001',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'tl-003',
-    encounter_id: 'enc-001',
-    patient_id: 'pat-001',
-    event_date: new Date().toISOString().split('T')[0],
-    title: 'Emergency Intake — Chest Pressure',
-    description: 'Presented to MediKiosk with acute substernal chest discomfort radiating to left arm. Triggered RED priority alert.',
-    event_type: 'intake_visit',
-    source: 'patient_stated',
-    source_document_id: null,
-    created_at: new Date().toISOString(),
-  }
-];
-
-const initialAISummaries: AISummary[] = [
-  {
-    id: 'sum-001',
-    encounter_id: 'enc-001',
-    patient_id: 'pat-001',
-    chief_complaint: 'Substernal chest pressure radiating to left shoulder and arm for 2 hours with diaphoresis',
-    hpi: '48-year-old male with known history of hypertension (2 years) presenting with acute onset of severe retrosternal squeezing chest pain (severity 8/10) that began 2 hours ago while at rest. Describes radiation to left shoulder and jaw. Associated with profuse sweating and mild shortness of breath. No relief with rest. No prior history of myocardial infarction.',
-    pmh_psh: 'Essential Hypertension (diagnosed 2022), Dyslipidemia (2025). No prior surgeries.',
-    medications_summary: 'Tab Telmisartan 40mg OD, Tab Atorvastatin 20mg OD.',
-    allergies_summary: 'CRITICAL: Severe Penicillin Allergy (Urticaria/Angioedema)',
-    investigations_summary: 'Prior Lipid Profile (June 2025): Total Cholesterol 242 mg/dL, LDL 168 mg/dL. Current visit STAT ECG pending.',
-    ayush_summary: null,
-    red_flags_highlighted: [
-      'Acute retrosternal chest pain > 30 mins radiating to left arm/jaw',
-      'Associated diaphoresis and dyspnea',
-      'High cardiovascular risk profile (Male, 48y, HTN, Dyslipidemia)'
-    ],
-    summary_markdown: `### **AI-generated draft — physician verification required.**\n\n**Patient:** Aarav Sharma | 48Y / Male | ABHA: 91-4829-1029-4821\n**Triage Priority:** **RED (Immediate Assessment)**\n\n#### 1. Chief Complaint & HPI\n- **Chief Complaint:** Squeezing chest pressure for 2 hours.\n- **HPI:** Acute retrosternal pain (8/10) radiating to left arm and jaw with cold sweating. Onset at rest.\n\n#### 2. Pertinent History & Medications\n- **PMH:** Hypertension (2 yrs), Hyperlipidemia (1 yr).\n- **Current Meds:** Telmisartan 40mg OD, Atorvastatin 20mg OD.\n- **Allergies:** **PENICILLIN (Severe Urticaria / Angioedema)**.\n\n#### 3. Red Flags & Triage Alerts\n- High suspicion of Acute Coronary Syndrome (ACS / STEMI / NSTEMI).\n- Immediate 12-lead ECG and Troponin I/T recommended.`,
-    is_verified: false,
-    verified_by: null,
-    verified_at: null,
-    doctor_edited_summary: null,
-    created_at: new Date(Date.now() - 600000).toISOString(),
-  }
-];
-
-const initialAISuggestions: AISuggestion[] = [
-  {
-    id: 'sug-001',
-    encounter_id: 'enc-001',
-    suggestion_type: 'investigation',
-    title: 'STAT 12-Lead ECG & Serum Troponin I / T',
-    details: 'Evaluate for ST-segment elevation or acute ischemic changes given 8/10 chest pain with left arm radiation.',
-    status: 'pending',
-    doctor_feedback: null,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'sug-002',
-    encounter_id: 'enc-001',
-    suggestion_type: 'follow_up_question',
-    title: 'Inquire about recent NSAID or Sildenafil intake',
-    details: 'Verify prior to administering sublingual nitrates if indicated.',
-    status: 'pending',
-    doctor_feedback: null,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'sug-003',
-    encounter_id: 'enc-001',
-    suggestion_type: 'differential_consideration',
-    title: 'Differential: Acute Coronary Syndrome vs Aortic Dissection vs GERD spasm',
-    details: 'Check bilateral brachial blood pressure symmetry to rule out dissection before antiplatelet/anticoagulation load.',
-    status: 'pending',
-    doctor_feedback: null,
-    created_at: new Date().toISOString(),
-  }
-];
-
-const initialAyushAssessments: AyushAssessment[] = [
-  {
-    id: 'ayu-001',
-    encounter_id: 'enc-003',
-    patient_id: 'pat-003',
-    prakriti_primary: 'Vata-Kapha',
-    prakriti_secondary: 'Pitta',
-    vikriti_dosha: 'Vata Vriddhi (Vata-Kapha Anubandha)',
-    agni_type: 'Manda',
-    koshtha_type: 'Krura',
-    dhatu_affected: ['Asthi', 'Majja', 'Mamsa'],
-    sattva_shakti: 'Madhyama',
-    ahara_vihara_notes: 'Excessive consumption of dry/cold foods (Ruksha-Sheeta Ahara), irregular sleep schedule, sedentary job.',
-    created_at: new Date(Date.now() - 5400000).toISOString(),
-  }
-];
-
-const initialAuditLogs: AuditLog[] = [
-  {
-    id: 'aud-001',
-    encounter_id: 'enc-001',
-    patient_id: 'pat-001',
-    actor_id: 'pat-001',
-    actor_role: 'patient',
-    action: 'PATIENT_INTAKE_COMPLETED',
-    details: { kioskId: 'kiosk-01', language: 'hi', questionsAnswered: 8, redFlagTriggered: true },
-    ip_address: '192.168.1.101',
-    timestamp: new Date(Date.now() - 600000).toISOString(),
-  },
-  {
-    id: 'aud-002',
-    encounter_id: 'enc-001',
-    patient_id: 'pat-001',
-    actor_id: 'usr-tri-01',
-    actor_role: 'triage',
-    action: 'TRIAGE_ALERT_ACKNOWLEDGED',
-    details: { alertId: 'tri-001', severity: 'RED', actionTaken: 'Escalated to ER Bay 2' },
-    ip_address: '192.168.1.50',
-    timestamp: new Date(Date.now() - 540000).toISOString(),
-  }
 ];
 
 class MockDatabase {
-  private state: MockDatabaseState;
-  private listeners: Set<() => void> = new Set();
+  private users: UserProfile[] = [...MOCK_USERS];
+  private patients: Patient[] = [...INITIAL_PATIENTS];
+  private encounters: Encounter[] = [...INITIAL_ENCOUNTERS];
+  private documents: Document[] = [];
+  private medications: Medication[] = [
+    {
+      id: 'c1111111-1111-1111-1111-111111111111',
+      encounter_id: 'e1111111-1111-1111-1111-111111111111',
+      patient_id: 'a1111111-1111-1111-1111-111111111111',
+      name: 'Tab Telmisartan',
+      dosage: '40 mg',
+      frequency: 'Once Daily (Morning)',
+      duration: 'Ongoing (2 years)',
+      route: 'Oral',
+      source: 'patient_stated',
+      source_document_id: null,
+      verification_state: 'needs_review',
+      doctor_notes: null,
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'c2222222-2222-2222-2222-222222222222',
+      encounter_id: 'e1111111-1111-1111-1111-111111111111',
+      patient_id: 'a1111111-1111-1111-1111-111111111111',
+      name: 'Tab Atorvastatin',
+      dosage: '20 mg',
+      frequency: 'Once Daily (Night)',
+      duration: 'Ongoing (1 year)',
+      route: 'Oral',
+      source: 'document_ocr',
+      source_document_id: null,
+      verification_state: 'needs_review',
+      doctor_notes: null,
+      created_at: new Date().toISOString(),
+    },
+  ];
+  private allergies: Allergy[] = [
+    {
+      id: 'f1111111-1111-1111-1111-111111111111',
+      encounter_id: 'e1111111-1111-1111-1111-111111111111',
+      patient_id: 'a1111111-1111-1111-1111-111111111111',
+      allergen: 'Penicillin (Amoxicillin)',
+      category: 'drug',
+      reaction: 'Urticaria and facial angioedema',
+      severity: 'severe',
+      source: 'patient_stated',
+      verification_state: 'needs_review',
+      created_at: new Date().toISOString(),
+    },
+  ];
+  private investigations: Investigation[] = [
+    {
+      id: 'inv-001',
+      encounter_id: 'e1111111-1111-1111-1111-111111111111',
+      patient_id: 'a1111111-1111-1111-1111-111111111111',
+      test_name: 'Serum Total Cholesterol',
+      test_category: 'Biochemistry / Lipid Profile',
+      numeric_result: 242,
+      unit: 'mg/dL',
+      reference_range: '< 200 mg/dL',
+      text_result: null,
+      is_abnormal: true,
+      test_date: '2025-06-15',
+      source_document_id: null,
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'inv-002',
+      encounter_id: 'e1111111-1111-1111-1111-111111111111',
+      patient_id: 'a1111111-1111-1111-1111-111111111111',
+      test_name: 'Serum LDL Cholesterol',
+      test_category: 'Biochemistry / Lipid Profile',
+      numeric_result: 168,
+      unit: 'mg/dL',
+      reference_range: '< 100 mg/dL',
+      text_result: null,
+      is_abnormal: true,
+      test_date: '2025-06-15',
+      source_document_id: null,
+      created_at: new Date().toISOString(),
+    },
+  ];
+  private timelineEvents: TimelineEvent[] = [
+    {
+      id: 'e1111111-1111-1111-1111-111111111112',
+      encounter_id: 'e1111111-1111-1111-1111-111111111111',
+      patient_id: 'a1111111-1111-1111-1111-111111111111',
+      event_date: '2022-04-10',
+      title: 'Essential Hypertension Diagnosed',
+      description: 'Diagnosed at Max Hospital. Commenced on Tab Telmisartan 40mg.',
+      event_type: 'diagnosis',
+      source: 'patient_stated',
+      source_document_id: null,
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'e1111111-1111-1111-1111-111111111113',
+      encounter_id: 'e1111111-1111-1111-1111-111111111111',
+      patient_id: 'a1111111-1111-1111-1111-111111111111',
+      event_date: '2025-06-15',
+      title: 'Lipid Profile Investigation',
+      description: 'Total Cholesterol 242 mg/dL, LDL 168 mg/dL. Commenced on Atorvastatin 20mg.',
+      event_type: 'lab_test',
+      source: 'document_ocr',
+      source_document_id: null,
+      created_at: new Date().toISOString(),
+    },
+  ];
+  private triageAlerts: TriageAlert[] = [
+    {
+      id: 'b1111111-1111-1111-1111-111111111111',
+      encounter_id: 'e1111111-1111-1111-1111-111111111111',
+      patient_id: 'a1111111-1111-1111-1111-111111111111',
+      severity: 'EMERGENCY',
+      trigger_symptom: 'Crushing chest pressure radiating to left arm + diaphoresis',
+      clinical_rationale: 'Suspected Acute Coronary Syndrome (ACS). Fast-track cardiologist review required.',
+      is_acknowledged: true,
+      acknowledged_by: 'usr-adm-01',
+      acknowledged_at: new Date().toISOString(),
+      action_taken: 'Assigned to Dr. Arvind Sen (Cardiology). Urgent 12-lead ECG ordered.',
+      created_at: new Date().toISOString(),
+    },
+  ];
+  private aiSummaries: AISummary[] = [
+    {
+      id: '01111111-1111-1111-1111-111111111111',
+      encounter_id: 'e1111111-1111-1111-1111-111111111111',
+      patient_id: 'a1111111-1111-1111-1111-111111111111',
+      chief_complaint: 'CHEST PAIN (Severity: 8/10, Duration: 2 hours)',
+      hpi: '48-year-old male with known hypertension presenting with acute onset of crushing retrosternal chest pain (8/10) that began 2 hours ago at rest. Radiating to left shoulder and jaw. Associated with cold diaphoresis and breathlessness.',
+      pmh_psh: 'Chronic Conditions: Essential Hypertension (2022), Dyslipidemia (2025).',
+      medications_summary: 'Tab Telmisartan 40mg OD [Patient Stated]; Tab Atorvastatin 20mg HS [Document OCR]',
+      allergies_summary: 'CRITICAL: Severe Penicillin Allergy (Urticaria & Facial Angioedema)',
+      investigations_summary: 'Prior Lipid Profile (June 2025): Total Cholesterol 242 mg/dL, LDL 168 mg/dL. STAT 12-lead ECG & Troponin I pending.',
+      recommended_specialty: 'Cardiology',
+      ayush_summary: null,
+      red_flags_highlighted: [
+        'Acute crushing retrosternal pain > 30 mins',
+        'Radiation to left arm and jaw',
+        'Diaphoresis and dyspnea',
+      ],
+      summary_markdown: `### **AI-generated draft — physician verification required.**
 
-  constructor() {
-    this.state = {
-      patients: initialPatients,
-      encounters: initialEncounters,
-      consents: [],
-      interviewAnswers: [],
-      documents: [],
-      documentExtractions: [],
-      medications: initialMedications,
-      allergies: initialAllergies,
-      investigations: [],
-      timelineEvents: initialTimelineEvents,
-      triageAlerts: initialTriageAlerts,
-      aiSummaries: initialAISummaries,
-      aiSuggestions: initialAISuggestions,
-      ayushAssessments: initialAyushAssessments,
-      auditLogs: initialAuditLogs,
-      systemSettings: {
-        enable_ayush_mode: true,
-        enable_ai_suggestions_by_default: false,
-        kiosk_auto_expire_minutes: 15,
-        default_language: 'hi',
-      },
+**Patient:** Aarav Sharma | **Age/Sex:** 48Y / MALE | **ABHA:** 91-4829-1029-4821  
+**Triage Acuity:** **EMERGENCY (URGENT CARDIOLOGY FAST-TRACK)**  
+**Recommended Specialty:** **Cardiology**
+
+---
+
+#### 1. Chief Complaint & History of Present Illness (HPI)
+- **Chief Complaint:** Acute crushing retrosternal chest pressure (8/10 severity, 2 hours duration).
+- **HPI Narrative:** 48-year-old male with known hypertension presenting with sudden onset of severe retrosternal pressure radiating to left arm and jaw with profuse sweating.
+- **Pain Score:** 8/10 | **Onset:** < 2 hours | **Radiation:** Left arm, jaw
+
+#### 2. Past Medical History & Medications
+- **PMH:** Essential Hypertension (2 years), Hypercholesterolemia (1 year).
+- **Current Meds:** Tab Telmisartan 40mg OD, Tab Atorvastatin 20mg HS.
+- **Allergies:** **PENICILLIN (Severe Urticaria & Angioedema)**.
+
+#### 3. Recommended Specialty & Safety Sentinel
+- **Recommended Specialty:** **Cardiology** (Immediate ECG & Troponin evaluation).
+- **Red-Flag Rationale:** Suspected Acute Coronary Syndrome (ACS).`,
+      is_verified: false,
+      verified_by: null,
+      verified_at: null,
+      doctor_edited_summary: null,
+      created_at: new Date().toISOString(),
+    },
+  ];
+  private aiSuggestions: AISuggestion[] = [
+    {
+      id: 'sug-001',
+      encounter_id: 'e1111111-1111-1111-1111-111111111111',
+      suggestion_type: 'investigation',
+      title: 'STAT 12-Lead Electrocardiogram (ECG) & Serum Troponin I / T',
+      details: 'Given acute retrosternal pressure radiating to left arm with diaphoresis, immediate 12-lead ECG is indicated to evaluate for ST-elevation myocardial infarction (STEMI) or non-STEMI.',
+      status: 'pending',
+      doctor_feedback: null,
+      created_at: new Date().toISOString(),
+    },
+  ];
+  private ayushAssessments: AyushAssessment[] = [
+    {
+      id: '02222222-2222-2222-2222-222222222222',
+      encounter_id: 'e3333333-3333-3333-3333-333333333333',
+      patient_id: 'a3333333-3333-3333-3333-333333333333',
+      prakriti_primary: 'Vata-Kapha',
+      prakriti_secondary: 'Pitta',
+      vikriti_dosha: 'Vata Vriddhi (Sandhigata Vata)',
+      agni_type: 'Manda',
+      koshtha_type: 'Krura',
+      dhatu_affected: ['Asthi', 'Majja', 'Mamsa'],
+      sattva_shakti: 'Madhyama',
+      ahara_vihara_notes: 'Excessive cold/dry food intake, irregular sleep schedule',
+      created_at: new Date().toISOString(),
+    },
+  ];
+  private auditLogs: AuditLog[] = [
+    {
+      id: 'log-001',
+      encounter_id: 'e1111111-1111-1111-1111-111111111111',
+      patient_id: 'a1111111-1111-1111-1111-111111111111',
+      actor_id: 'a1111111-1111-1111-1111-111111111111',
+      actor_role: 'patient',
+      action: 'PATIENT_INTAKE_SUBMITTED',
+      details: { complaint: 'Chest pain', recommended_specialty: 'Cardiology', is_emergency: true },
+      ip_address: '127.0.0.1',
+      timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+    },
+    {
+      id: 'log-002',
+      encounter_id: 'e1111111-1111-1111-1111-111111111111',
+      patient_id: 'a1111111-1111-1111-1111-111111111111',
+      actor_id: 'usr-adm-01',
+      actor_role: 'admin',
+      action: 'DOCTOR_ASSIGNED',
+      details: { doctor_id: 'usr-doc-01', doctor_name: 'Dr. Arvind Sen', specialty: 'Cardiology' },
+      ip_address: '127.0.0.1',
+      timestamp: new Date(Date.now() - 3600000 * 1.8).toISOString(),
+    },
+  ];
+
+  private subscribers: Array<() => void> = [];
+
+  public subscribe(callback: () => void) {
+    this.subscribers.push(callback);
+    return () => {
+      this.subscribers = this.subscribers.filter((s) => s !== callback);
     };
-  }
-
-  public getState(): MockDatabaseState {
-    return this.state;
-  }
-
-  public subscribe(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
   }
 
   private notify() {
-    this.listeners.forEach((listener) => {
-      try {
-        listener();
-      } catch (err) {
-        console.error('Error notifying mock DB listener:', err);
-      }
+    this.subscribers.forEach((s) => s());
+  }
+
+  // --- QUERY METHODS ---
+  public getPatients() {
+    return [...this.patients];
+  }
+
+  public getPatientById(id: string) {
+    return this.patients.find((p) => p.id === id || p.demo_id === id);
+  }
+
+  public getEncounters() {
+    // Priority Sorting: Emergencies always jump to top, then chronological
+    return [...this.encounters].sort((a, b) => {
+      if (a.is_emergency && !b.is_emergency) return -1;
+      if (!a.is_emergency && b.is_emergency) return 1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   }
 
-  // --- Patients & Encounters ---
-  public getPatients(): Patient[] {
-    return this.state.patients;
+  public getEncounterById(id: string) {
+    return this.encounters.find((e) => e.id === id);
   }
 
-  public getPatientById(id: string): Patient | undefined {
-    return this.state.patients.find((p) => p.id === id || p.demo_id === id);
+  public getEncountersByDoctor(doctorId: string) {
+    return this.encounters.filter((e) => e.assigned_doctor_id === doctorId);
   }
 
-  public getEncounters(): Encounter[] {
-    return this.state.encounters;
+  public getAvailableDoctors(specialty?: string) {
+    if (!specialty) return AVAILABLE_DOCTORS;
+    return AVAILABLE_DOCTORS.filter((d) => 
+      d.specialty.toLowerCase().includes(specialty.toLowerCase()) ||
+      specialty.toLowerCase().includes(d.specialty.toLowerCase())
+    );
   }
 
-  public getEncounterById(id: string): Encounter | undefined {
-    return this.state.encounters.find((e) => e.id === id);
+  public getTriageAlerts() {
+    return [...this.triageAlerts];
   }
 
-  public addPatient(patientData: Omit<Patient, 'id' | 'created_at' | 'updated_at'>): Patient {
+  public getAISummaryByEncounter(encounterId: string) {
+    return this.aiSummaries.find((s) => s.encounter_id === encounterId);
+  }
+
+  public getSuggestionsByEncounter(encounterId: string) {
+    return this.aiSuggestions.filter((s) => s.encounter_id === encounterId);
+  }
+
+  public getAuditLogs() {
+    return [...this.auditLogs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+  // --- MUTATION METHODS ---
+  public createPatient(patientData: Omit<Patient, 'id' | 'created_at'>): Patient {
     const newPatient: Patient = {
       ...patientData,
-      id: `pat-${Date.now()}`,
+      id: `a${Date.now()}`.padEnd(36, '0'),
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     };
-    this.state.patients = [newPatient, ...this.state.patients];
-    this.logAudit({
-      encounter_id: null,
-      patient_id: newPatient.id,
-      actor_id: newPatient.id,
-      actor_role: 'patient',
-      action: 'PATIENT_REGISTERED',
-      details: { demoId: newPatient.demo_id, language: newPatient.preferred_language },
-    });
+    this.patients.push(newPatient);
     this.notify();
     return newPatient;
   }
 
-  public addEncounter(encounterData: Omit<Encounter, 'id' | 'created_at' | 'updated_at'>): Encounter {
+  public createEncounter(encounterData: Partial<Encounter>): Encounter {
     const newEncounter: Encounter = {
-      ...encounterData,
-      id: `enc-${Date.now()}`,
+      id: `e${Date.now()}`.padEnd(36, '0'),
+      patient_id: encounterData.patient_id || this.patients[0].id,
+      kiosk_id: encounterData.kiosk_id || '11111111-1111-1111-1111-111111111111',
+      department_id: encounterData.department_id || 'd1111111-1111-1111-1111-111111111111',
+      recommended_specialty: encounterData.recommended_specialty || 'General Medicine',
+      assigned_doctor_id: encounterData.assigned_doctor_id || null,
+      proposed_appointment_time: encounterData.proposed_appointment_time || null,
+      confirmed_appointment_time: encounterData.confirmed_appointment_time || null,
+      appointment_mode: encounterData.appointment_mode || null,
+      appointment_location: encounterData.appointment_location || null,
+      doctor_proposed_notes: encounterData.doctor_proposed_notes || null,
+      admin_confirmation_notes: encounterData.admin_confirmation_notes || null,
+      status: encounterData.status || 'submitted_waiting_assignment',
+      priority: encounterData.priority || 'GREEN',
+      is_emergency: encounterData.is_emergency || false,
+      emergency_rationale: encounterData.emergency_rationale || null,
+      is_ayush_encounter: encounterData.is_ayush_encounter || false,
+      chief_complaint_summary: encounterData.chief_complaint_summary || 'Patient intake completed.',
+      intake_started_at: encounterData.intake_started_at || new Date().toISOString(),
+      intake_completed_at: new Date().toISOString(),
+      consultation_completed_at: null,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     };
-    this.state.encounters = [newEncounter, ...this.state.encounters];
+
+    this.encounters.push(newEncounter);
+
+    this.logAudit({
+      encounter_id: newEncounter.id,
+      patient_id: newEncounter.patient_id,
+      actor_id: newEncounter.patient_id,
+      actor_role: 'patient',
+      action: 'PATIENT_INTAKE_SUBMITTED',
+      details: { 
+        recommended_specialty: newEncounter.recommended_specialty, 
+        is_emergency: newEncounter.is_emergency,
+        priority: newEncounter.priority 
+      },
+    });
+
     this.notify();
     return newEncounter;
   }
 
-  public updateEncounter(id: string, updates: Partial<Encounter>): Encounter | undefined {
-    const index = this.state.encounters.findIndex((e) => e.id === id);
-    if (index === -1) return undefined;
-
-    const updated = {
-      ...this.state.encounters[index],
-      ...updates,
-      updated_at: new Date().toISOString(),
-    };
-    this.state.encounters[index] = updated;
+  public updateEncounter(encounterId: string, updates: Partial<Encounter>): Encounter | null {
+    const idx = this.encounters.findIndex((e) => e.id === encounterId);
+    if (idx === -1) return null;
+    this.encounters[idx] = { ...this.encounters[idx], ...updates };
     this.notify();
+    return this.encounters[idx];
+  }
+
+  // --- STEP 2: ADMIN ASSIGNS DOCTOR ---
+  public assignDoctor(encounterId: string, doctorId: string, adminId: string, notes?: string): Encounter | null {
+    const enc = this.getEncounterById(encounterId);
+    if (!enc) return null;
+    const doctor = AVAILABLE_DOCTORS.find((d) => d.id === doctorId);
+
+    const updated = this.updateEncounter(encounterId, {
+      assigned_doctor_id: doctorId,
+      status: 'doctor_assigned',
+    });
+
+    this.logAudit({
+      encounter_id: encounterId,
+      patient_id: enc.patient_id,
+      actor_id: adminId,
+      actor_role: 'admin',
+      action: 'DOCTOR_ASSIGNED_BY_ADMIN',
+      details: { doctor_id: doctorId, doctor_name: doctor?.name, specialty: doctor?.specialty, notes },
+    });
+
     return updated;
   }
 
-  // --- Triage Alerts ---
-  public getTriageAlerts(): TriageAlert[] {
-    return this.state.triageAlerts;
-  }
+  // --- STEP 3: DOCTOR PROPOSES APPOINTMENT ---
+  public proposeAppointment(
+    encounterId: string, 
+    proposedTime: string, 
+    mode: 'in_person' | 'video_consult', 
+    notes: string, 
+    doctorId: string
+  ): Encounter | null {
+    const enc = this.getEncounterById(encounterId);
+    if (!enc) return null;
 
-  public addTriageAlert(alertData: Omit<TriageAlert, 'id' | 'created_at'>): TriageAlert {
-    const newAlert: TriageAlert = {
-      ...alertData,
-      id: `tri-${Date.now()}`,
-      created_at: new Date().toISOString(),
-    };
-    this.state.triageAlerts = [newAlert, ...this.state.triageAlerts];
-    this.logAudit({
-      encounter_id: alertData.encounter_id,
-      patient_id: alertData.patient_id,
-      actor_id: 'system',
-      actor_role: 'system',
-      action: 'TRIAGE_RED_FLAG_TRIGGERED',
-      details: { severity: alertData.severity, symptom: alertData.trigger_symptom },
+    const updated = this.updateEncounter(encounterId, {
+      proposed_appointment_time: proposedTime,
+      appointment_mode: mode,
+      doctor_proposed_notes: notes,
+      status: 'appointment_proposed',
     });
-    this.notify();
-    return newAlert;
-  }
-
-  public acknowledgeTriageAlert(alertId: string, actorId: string, actionTaken: string): boolean {
-    const alert = this.state.triageAlerts.find((a) => a.id === alertId);
-    if (!alert) return false;
-
-    alert.is_acknowledged = true;
-    alert.acknowledged_by = actorId;
-    alert.acknowledged_at = new Date().toISOString();
-    alert.action_taken = actionTaken;
 
     this.logAudit({
-      encounter_id: alert.encounter_id,
-      patient_id: alert.patient_id,
-      actor_id: actorId,
-      actor_role: 'triage',
-      action: 'TRIAGE_ALERT_ACKNOWLEDGED',
-      details: { alertId, actionTaken },
+      encounter_id: encounterId,
+      patient_id: enc.patient_id,
+      actor_id: doctorId,
+      actor_role: 'doctor',
+      action: 'APPOINTMENT_PROPOSED_BY_DOCTOR',
+      details: { proposed_time: proposedTime, mode, notes },
     });
-    this.notify();
-    return true;
+
+    return updated;
   }
 
-  // --- AI Summaries & Doctor Signoff ---
-  public getAISummaryByEncounter(encounterId: string): AISummary | undefined {
-    return this.state.aiSummaries.find((s) => s.encounter_id === encounterId);
+  // --- STEP 4: ADMIN CONFIRMS APPOINTMENT TO PATIENT ---
+  public confirmAppointment(
+    encounterId: string, 
+    confirmedTime: string, 
+    adminId: string, 
+    location?: string, 
+    notes?: string
+  ): Encounter | null {
+    const enc = this.getEncounterById(encounterId);
+    if (!enc) return null;
+
+    const updated = this.updateEncounter(encounterId, {
+      confirmed_appointment_time: confirmedTime,
+      appointment_location: location || 'Main Hospital Consultation Suite',
+      admin_confirmation_notes: notes || 'Confirmed by Hospital Admin.',
+      status: 'appointment_confirmed',
+    });
+
+    this.logAudit({
+      encounter_id: encounterId,
+      patient_id: enc.patient_id,
+      actor_id: adminId,
+      actor_role: 'admin',
+      action: 'APPOINTMENT_CONFIRMED_BY_ADMIN',
+      details: { confirmed_time: confirmedTime, location, notes },
+    });
+
+    return updated;
   }
 
-  public saveAISummary(summaryData: Omit<AISummary, 'id' | 'created_at'>): AISummary {
+  public saveAISummary(summary: Omit<AISummary, 'id' | 'created_at'>): AISummary {
     const newSummary: AISummary = {
-      ...summaryData,
-      id: `sum-${Date.now()}`,
+      ...summary,
+      id: `0${Date.now()}`.padEnd(36, '0'),
       created_at: new Date().toISOString(),
     };
-    this.state.aiSummaries = [newSummary, ...this.state.aiSummaries];
+    this.aiSummaries.push(newSummary);
     this.notify();
     return newSummary;
   }
 
-  public updateDoctorSummary(
-    summaryId: string,
-    doctorId: string,
-    editedMarkdown: string,
-    isVerified: boolean
-  ): AISummary | undefined {
-    const summary = this.state.aiSummaries.find((s) => s.id === summaryId);
-    if (!summary) return undefined;
+  public updateDoctorSummary(summaryId: string, doctorId: string, editedText: string, isVerified: boolean): AISummary | null {
+    const idx = this.aiSummaries.findIndex((s) => s.id === summaryId);
+    if (idx === -1) return null;
 
-    summary.doctor_edited_summary = editedMarkdown;
-    summary.is_verified = isVerified;
-    summary.verified_by = doctorId;
-    summary.verified_at = isVerified ? new Date().toISOString() : null;
+    this.aiSummaries[idx] = {
+      ...this.aiSummaries[idx],
+      doctor_edited_summary: editedText,
+      is_verified: isVerified,
+      verified_by: doctorId,
+      verified_at: isVerified ? new Date().toISOString() : null,
+    };
 
     this.logAudit({
-      encounter_id: summary.encounter_id,
-      patient_id: summary.patient_id,
+      encounter_id: this.aiSummaries[idx].encounter_id,
+      patient_id: this.aiSummaries[idx].patient_id,
       actor_id: doctorId,
       actor_role: 'doctor',
-      action: isVerified ? 'DOCTOR_SUMMARY_VERIFIED' : 'DOCTOR_SUMMARY_EDITED',
-      details: { summaryId, isVerified },
+      action: isVerified ? 'PHYSICIAN_SUMMARY_VERIFIED' : 'PHYSICIAN_SUMMARY_EDITED',
+      details: { summary_id: summaryId, is_verified: isVerified },
     });
+
     this.notify();
-    return summary;
+    return this.aiSummaries[idx];
   }
 
-  // --- AI Suggestions ---
-  public getSuggestionsByEncounter(encounterId: string): AISuggestion[] {
-    return this.state.aiSuggestions.filter((s) => s.encounter_id === encounterId);
-  }
-
-  public updateSuggestionStatus(
-    suggestionId: string,
-    status: 'accepted' | 'rejected' | 'modified',
-    doctorId: string,
-    feedback?: string
-  ): boolean {
-    const suggestion = this.state.aiSuggestions.find((s) => s.id === suggestionId);
-    if (!suggestion) return false;
-
-    suggestion.status = status;
-    suggestion.doctor_feedback = feedback || null;
-
-    this.logAudit({
-      encounter_id: suggestion.encounter_id,
-      patient_id: null,
-      actor_id: doctorId,
-      actor_role: 'doctor',
-      action: `AI_SUGGESTION_${status.toUpperCase()}`,
-      details: { suggestionId, title: suggestion.title },
-    });
+  public addTriageAlert(alert: Omit<TriageAlert, 'id' | 'created_at'>): TriageAlert {
+    const newAlert: TriageAlert = {
+      ...alert,
+      id: `b${Date.now()}`.padEnd(36, '0'),
+      created_at: new Date().toISOString(),
+    };
+    this.triageAlerts.push(newAlert);
     this.notify();
-    return true;
+    return newAlert;
   }
 
-  // --- Audit Logs ---
-  public getAuditLogs(): AuditLog[] {
-    return this.state.auditLogs;
-  }
-
-  public logAudit(logData: {
-    encounter_id: string | null;
-    patient_id: string | null;
-    actor_id: string | null;
-    actor_role: UserRole | 'system';
-    action: string;
-    details: any;
-  }): void {
+  public logAudit(log: Omit<AuditLog, 'id' | 'timestamp' | 'ip_address'> & { ip_address?: string }) {
     const newLog: AuditLog = {
-      id: `aud-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      encounter_id: logData.encounter_id,
-      patient_id: logData.patient_id,
-      actor_id: logData.actor_id,
-      actor_role: logData.actor_role,
-      action: logData.action,
-      details: logData.details,
-      ip_address: '127.0.0.1',
+      id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      encounter_id: log.encounter_id || null,
+      patient_id: log.patient_id || null,
+      actor_id: log.actor_id || null,
+      actor_role: log.actor_role,
+      action: log.action,
+      details: log.details || {},
+      ip_address: log.ip_address || '127.0.0.1',
       timestamp: new Date().toISOString(),
     };
-    this.state.auditLogs = [newLog, ...this.state.auditLogs];
+    this.auditLogs.unshift(newLog);
+    this.notify();
+  }
+
+  public getState() {
+    return {
+      users: this.users,
+      patients: this.patients,
+      encounters: this.encounters,
+      documents: this.documents,
+      medications: this.medications,
+      allergies: this.allergies,
+      investigations: this.investigations,
+      timelineEvents: this.timelineEvents,
+      triageAlerts: this.triageAlerts,
+      aiSummaries: this.aiSummaries,
+      aiSuggestions: this.aiSuggestions,
+      ayushAssessments: this.ayushAssessments,
+      auditLogs: this.auditLogs,
+    };
   }
 }
 
-// Global Singleton Instance
 export const mockDB = new MockDatabase();

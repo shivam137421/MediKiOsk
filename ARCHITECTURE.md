@@ -1,120 +1,77 @@
-# MediKiosk — System & Data Architecture
+# MediKiosk — System Architecture & Workflow Specifications
 
-This document details the high-level architecture, module decomposition, data pipelines, and provider abstractions of the **MediKiosk** AI-assisted clinical intake system.
+MediKiosk is an AI-assisted patient intake and doctor appointment platform built around a linear 5-step clinical lifecycle and a 3-role permission model.
 
 ---
 
-## 1. High-Level Architecture Diagram
+## 1. Role System Architecture
 
-```
-+----------------------------------------------------------------------------------------------------+
-|                                      PATIENT INTAKE KIOSK (Voice + Large Touch UI)                  |
-|  - Language Selector (EN / HI)   - Consent Audio/Visual   - Symptom Ontology Trees  - Camera/Upload |
-+--------------------------------------------------+-------------------------------------------------+
-                                                   |
-                                                   v
-+----------------------------------------------------------------------------------------------------+
-|                                    MEDIKIOSK ORCHESTRATION LAYER                                  |
-|                                                                                                    |
-|  +---------------------------+   +----------------------------+   +-----------------------------+  |
-|  |     AI Dialogue Engine    |   |     OCR & Document AI      |   |      Red-Flag Sentinel      |  |
-|  | (Anthropic / Local Rules) |   | (Textract/Vision/Local OCR)|   | (Emergency Triage Rulesets) |  |
-|  +-------------+-------------+   +--------------+-------------+   +--------------+--------------+  |
-|                |                                |                                |                 |
-|                +--------------------------------+--------------------------------+                 |
-|                                                 |                                                  |
-|                                                 v                                                  |
-|                               +----------------------------------+                                 |
-|                               |  Validation & Confidence Layer   |                                 |
-|                               | (Checks types, ranges, FHIR map) |                                 |
-|                               +-----------------+----------------+                                 |
-+-------------------------------------------------|--------------------------------------------------+
-                                                  |
-                                                  v
-+----------------------------------------------------------------------------------------------------+
-|                               SUPABASE DATA LAYER (PostgreSQL + RLS + Realtime)                    |
-|  - patients          - encounters         - consents           - interview_answers                 |
-|  - documents         - extractions        - medications        - allergies                         |
-|  - triage_alerts     - timeline_events    - ai_summaries       - audit_logs                        |
-+-------------------------------------------------+--------------------------------------------------+
-                                                  |
-                  +-------------------------------+-------------------------------+
-                  |                               |                               |
-                  v                               v                               v
-+--------------------------------+ +-----------------------------+ +---------------------------------+
-|        DOCTOR DASHBOARD        | |       TRIAGE DASHBOARD      | |        ADMIN & AUDIT PORTAL     |
-| - Patient Queue                | | - Live Emergency Queue      | | - Realtime Hospital Metrics     |
-| - AI Summary (Draft Review)    | | - Red-Flag Interventions    | | - User & Role Management        |
-| - Source-Linked Timeline       | | - Priority Assignment       | | - Department / AYUSH Config     |
-| - AI Suggestions (Opt-In)      | | - Fast Escalation           | | - Tamper-Evident Audit Trails   |
-| - Verification & Sign-off      | |                             | |                                 |
-+--------------------------------+ +-----------------------------+ +---------------------------------+
+The application defines exactly **three user roles**:
+
+```mermaid
+graph TD
+    A[MediKiosk Platform] --> B[Patient Role]
+    A --> C[Doctor Role]
+    A --> D[Admin Role]
+
+    B --> B1[Voice/Text AI Intake]
+    B --> B2[Clarifying MCQs]
+    B --> B3[Document Upload]
+    B --> B4[Appointment Tracker]
+
+    C --> C1[Assigned Patient Queue]
+    C --> C2[Clinical Summary Verification]
+    C --> C3[Propose Appointment Slot]
+    C --> C4[In-Person Consultation Sign-off]
+
+    D --> D1[Triage Queue with Emergency Priority]
+    D --> D2[Match & Assign Doctor]
+    D --> D3[Confirm Appointment to Patient]
+    D --> D4[Hospital Analytics & Audit Trail]
 ```
 
 ---
 
-## 2. Provider Abstraction Pattern (`src/lib/providers/`)
+## 2. Linear End-to-End Workflow (5 Steps)
 
-To prevent tight coupling to proprietary cloud APIs and guarantee 100% offline/local reliability, all external integrations follow strict TypeScript interfaces:
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Patient
+    actor Admin
+    actor Doctor
+    participant System as MediKiosk AI & DB
 
-### A. Document OCR Provider
-```typescript
-export interface DocumentOCRResult {
-  rawText: string;
-  confidence: number;
-  detectedLanguage: string;
-  pages: number;
-  extractedEntities: ExtractedMedicalEntities;
-  provider: "google_vision" | "aws_textract" | "tesseract" | "mock";
-}
+    Note over Patient,System: Step 1: Patient AI Conversation Intake
+    Patient->>System: Natural voice/text conversation in Hindi/English
+    Patient->>System: Answers follow-up clarifying MCQs
+    Patient->>System: Uploads previous prescriptions & lab reports
+    System->>System: Extracts OCR entities, evaluates red-flags & recommends specialty
+    System->>System: Status: submitted_waiting_assignment
 
-export interface DocumentOCRProvider {
-  processDocument(file: File | Blob, mimeType: string): Promise<DocumentOCRResult>;
-}
-```
+    Note over Admin,System: Step 2: Admin Triage & Doctor Assignment
+    Admin->>System: Reviews incoming queue (Emergencies jump to top)
+    Admin->>System: Reviews AI-recommended specialty & assigns Doctor
+    System->>System: Status: doctor_assigned
 
-### B. Speech Engine (ASR / TTS) Provider
-```typescript
-export interface SpeechProvider {
-  startListening(onResult: (text: string, isFinal: boolean) => void, onError: (err: any) => void): void;
-  stopListening(): void;
-  synthesizeSpeech(text: string, language: "en" | "hi"): Promise<void>;
-  cancelSpeech(): void;
-}
-```
+    Note over Doctor,System: Step 3: Doctor Review & Slot Proposal
+    Doctor->>System: Reviews full patient package & history (no repeat questioning)
+    Doctor->>System: Proposes appointment date/time slot & notes
+    System->>System: Status: appointment_proposed
 
-### C. AI Clinical Reasoning Provider
-```typescript
-export interface AIReasoningProvider {
-  parseDialogue(transcript: string, questionContext: QuestionContext): Promise<ParsedDialogueResponse>;
-  generateSummary(intakeData: IntakeBundle): Promise<AISummaryResponse>;
-  generateSuggestions(clinicalSummary: string, patientAge: number): Promise<AISuggestionsResponse>;
-}
+    Note over Admin,System: Step 4: Admin Confirmation
+    Admin->>System: Confirms proposed appointment slot
+    System->>System: Status: appointment_confirmed
+
+    Note over Patient,Doctor: Step 5: Confirmed Consultation
+    Patient->>System: Dashboard displays confirmed appointment card
+    Doctor->>Patient: In-person consultation with verified pre-visit record
 ```
 
 ---
 
-## 3. Data Flow & State Pipeline
+## 3. Queue Ordering & Emergency Prioritization
 
-1. **Intake Inception:** Patient creates or logs into an encounter (`encounters.status = 'consent_pending'`).
-2. **Consent Stored:** Audio-explained consent stored in `consents` table with timestamp, version, and IP/terminal hash.
-3. **Adaptive Interview:** Step-by-step questions dispatched from `ontology.ts`. Answers parsed and autosaved to `interview_answers`.
-4. **Safety Sentinel Check:** If answers or vitals trigger threshold rules (e.g. chest pain + diaphoresis), a row is immediately inserted into `triage_alerts` (`severity = 'RED'`), and Supabase Realtime broadcasts to `/triage`.
-5. **Document Ingestion:** Patient uploads prescription/lab images. OCR extracted into `document_extractions` with confidence scoring.
-6. **Timeline Assembly:** An automated event builder aggregates historical diagnoses, past admissions, prescriptions, and current visit milestones chronologically.
-7. **Clinical Summary Synthesis:** The AI Summary Engine produces structured Markdown with explicit source tags (`[Patient Stated]`, `[Doc OCR: Presc-01]`, `[AI Suggested]`).
-8. **Physician Review:** Attending doctor in `/doctor` reviews the summary, corrects fields if necessary (saving original and edited version for audit), optionally toggles AI suggestions, and verifies.
-9. **Finalization:** Encounter status set to `completed`, FHIR bundle exportable, audit log finalized.
-
----
-
-## 4. FHIR R4 Interoperability Shape
-
-MediKiosk maps internal clinical schemas to standard FHIR R4 resources:
-- `FHIR Patient` ← `patients`
-- `FHIR Encounter` ← `encounters`
-- `FHIR Condition` ← `clinical_history` (Chief complaints & past diagnoses)
-- `FHIR MedicationStatement` ← `medications`
-- `FHIR AllergyIntolerance` ← `allergies`
-- `FHIR DiagnosticReport` ← `investigations` + `document_extractions`
-- `FHIR QuestionnaireResponse` ← `interview_answers`
+1. **Default Ordering:** First-come, first-served based on intake submission timestamp.
+2. **Emergency Jump:** When an intake triggers a clinical red-flag (e.g. Acute Coronary Syndrome, severe pain >=7/10 with diaphoresis), `is_emergency = true`.
+3. **Queue Behavior:** The database query and UI immediately place all emergency encounters at the **top of the Admin queue** with glowing visual badges and priority alerts.

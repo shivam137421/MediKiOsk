@@ -1,143 +1,199 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  Activity, 
   Stethoscope, 
-  AlertTriangle, 
+  UserCheck, 
   ShieldCheck, 
-  Smartphone, 
-  Leaf, 
-  UserCircle2, 
-  Volume2, 
-  CheckCircle2,
-  ChevronDown
+  Sparkles, 
+  ChevronDown, 
+  AlertCircle,
+  Menu,
+  X,
+  Activity,
+  HeartPulse
 } from 'lucide-react';
-import { DEMO_USERS, mockDB } from '@/lib/supabase/mock-db';
-import { useAuth } from '@/lib/auth';
+import { useAuth, DEMO_USERS } from '@/lib/auth';
+import { UserRole } from '@/types/database';
 
 export function Navbar() {
   const pathname = usePathname();
-  const { currentUser, setCurrentUser } = useAuth();
-  const [activeAlertsCount, setActiveAlertsCount] = useState<number>(0);
-  const [showUserDropdown, setShowUserDropdown] = useState<boolean>(false);
-
-  useEffect(() => {
-    const updateStats = () => {
-      const alerts = mockDB.getTriageAlerts().filter(a => !a.is_acknowledged && (a.severity === 'RED' || a.severity === 'AMBER'));
-      setActiveAlertsCount(alerts.length);
-    };
-    updateStats();
-    const unsubscribe = mockDB.subscribe(updateStats);
-    return () => unsubscribe();
-  }, []);
+  const { currentUser, switchRole } = useAuth();
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { href: '/kiosk', label: 'Patient Kiosk', icon: Smartphone, color: 'text-emerald-500' },
-    { href: '/triage', label: 'Triage Live', icon: AlertTriangle, color: 'text-rose-500', badge: activeAlertsCount > 0 ? activeAlertsCount : null },
-    { href: '/doctor', label: 'Doctor Hub', icon: Stethoscope, color: 'text-sky-500' },
-    { href: '/admin', label: 'Admin & Audit', icon: ShieldCheck, color: 'text-slate-500' },
+    { href: '/', label: 'Home' },
+    { href: '/patient', label: 'Patient Care' },
+    { href: '/doctor', label: 'Doctor Hub' },
+    { href: '/admin', label: 'Admin Center' },
   ];
 
+  const handleRoleSelect = (role: UserRole) => {
+    switchRole(role);
+    setIsRoleDropdownOpen(false);
+  };
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white/90 dark:bg-slate-900/90 backdrop-blur-md transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md transition-colors">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         
-        {/* Brand Logo & Clinical Title */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-            <Activity className="w-6 h-6 animate-pulse" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">
-                Medi<span className="text-emerald-600 dark:text-emerald-400">Kiosk</span>
+        {/* Brand Logo */}
+        <div className="flex items-center gap-6">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-500 via-teal-500 to-emerald-500 flex items-center justify-center text-white shadow-md shadow-sky-500/20 group-hover:scale-105 transition-transform duration-300">
+              <HeartPulse className="w-6 h-6 animate-pulse" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
+                MediKiosk
+                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400">
+                  AI Intake
+                </span>
               </span>
-              <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 rounded">
-                v2.0 (SIH 26047)
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                Clinical Intake & Doctor Appointment System
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-none">
-              Ministry of Ayush · AIIA
-            </p>
-          </div>
-        </Link>
+          </Link>
 
-        {/* Center Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const isActive = pathname.startsWith(link.href);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  isActive
-                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${link.color}`} />
-                <span>{link.label}</span>
-                {link.badge !== null && link.badge !== undefined && (
-                  <span className="ml-1 px-1.5 py-0.2 text-[10px] font-bold bg-rose-500 text-white rounded-full animate-bounce">
-                    {link.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+          {/* Desktop Navigation Links */}
+          <nav className="hidden md:flex items-center gap-1">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href || (link.href !== '/' && pathname?.startsWith(link.href));
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    isActive
+                      ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-850'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
 
-        {/* Right: Demo Role Switcher & Status */}
+        {/* Right Section: Role Switcher Dropdown & Auth Status */}
         <div className="flex items-center gap-3">
           
-          {/* Quick Role Switcher Dropdown */}
+          {/* Quick Role Switcher */}
           <div className="relative">
             <button
-              onClick={() => setShowUserDropdown(!showUserDropdown)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors"
+              onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-850 text-xs transition-all shadow-sm"
+              title="Switch Active User Role"
             >
-              <UserCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <div className="text-left hidden sm:block">
-                <p className="font-semibold text-[11px] leading-tight">{currentUser.name}</p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-none">{currentUser.badge}</p>
+              <div className="w-6 h-6 rounded-full bg-sky-500/20 text-sky-600 flex items-center justify-center font-bold text-[11px]">
+                {currentUser.role === 'doctor' ? <Stethoscope className="w-3.5 h-3.5" /> :
+                 currentUser.role === 'admin' ? <ShieldCheck className="w-3.5 h-3.5" /> :
+                 <UserCheck className="w-3.5 h-3.5" />}
               </div>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              <div className="flex flex-col text-left">
+                <span className="text-[10px] text-slate-400 uppercase font-bold leading-tight">
+                  {currentUser.role}
+                </span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[120px] text-xs">
+                  {currentUser.name}
+                </span>
+              </div>
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isRoleDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {showUserDropdown && (
-              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 border rounded-xl shadow-xl py-2 z-50">
-                <div className="px-3 py-1.5 border-b text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Switch Active Role (Demo)
+            {/* Dropdown Menu */}
+            {isRoleDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 mb-1">
+                  <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+                    Switch Active User Role
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Switch instantly to test different portal perspectives.
+                  </p>
                 </div>
-                {DEMO_USERS.map((user) => (
-                  <button
-                    key={user.id}
-                    onClick={() => {
-                      setCurrentUser(user);
-                      setShowUserDropdown(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${
-                      currentUser.id === user.id ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-semibold' : 'text-slate-700 dark:text-slate-200'
-                    }`}
+
+                {(['patient', 'doctor', 'admin'] as UserRole[]).map((role) => {
+                  const demoUser = DEMO_USERS[role];
+                  const isCurrent = currentUser.role === role;
+                  const Icon = role === 'doctor' ? Stethoscope : role === 'admin' ? ShieldCheck : UserCheck;
+
+                  return (
+                    <button
+                      key={role}
+                      onClick={() => handleRoleSelect(role)}
+                      className={`w-full p-2.5 rounded-xl flex items-center gap-3 transition-colors text-left ${
+                        isCurrent
+                          ? 'bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-300 font-bold'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        role === 'doctor' ? 'bg-sky-100 text-sky-600 dark:bg-sky-950' :
+                        role === 'admin' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800' :
+                        'bg-emerald-100 text-emerald-600 dark:bg-emerald-950'
+                      }`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs capitalize font-bold">{role}</span>
+                          {isCurrent && <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500 text-white">Active</span>}
+                        </div>
+                        <p className="text-[11px] text-slate-500 truncate">{demoUser.name}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+
+                <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <Link
+                    href="/auth/login"
+                    onClick={() => setIsRoleDropdownOpen(false)}
+                    className="block text-center text-xs text-sky-500 hover:text-sky-600 font-semibold py-1"
                   >
-                    <div>
-                      <p>{user.name}</p>
-                      <p className="text-[10px] text-slate-400">{user.badge} {user.department ? `· ${user.department}` : ''}</p>
-                    </div>
-                    {currentUser.id === user.id && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-                  </button>
-                ))}
+                    View All Staff & Patient Profiles →
+                  </Link>
+                </div>
               </div>
             )}
           </div>
 
+          {/* Mobile Menu Trigger */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
         </div>
+
       </div>
+
+      {/* Mobile Nav Drawer */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 pt-2 pb-4 space-y-1">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`block px-3 py-2 rounded-xl text-sm font-semibold ${
+                pathname === link.href
+                  ? 'bg-sky-500 text-white'
+                  : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      )}
     </header>
   );
 }

@@ -41,6 +41,12 @@ export function generateStructuredClinicalSummary(input: SummaryGenerationInput)
     ? input.investigations.map(inv => `${inv.test_name}: ${inv.numeric_result || inv.text_result} ${inv.unit || ''} ${inv.is_abnormal ? '(ABNORMAL - Physician review recommended)' : '(Normal)'}`).join('; ')
     : 'Prior Lipid Profile (June 2025): Total Cholesterol 242 mg/dL, LDL 168 mg/dL (Elevated). STAT 12-lead ECG & Troponin I pending.';
 
+  const recommendedSpecialty = isAyushMode
+    ? 'Ayurveda & AYUSH'
+    : chiefComplaint.includes('chest') || character.includes('pressure')
+    ? 'Cardiology'
+    : 'General Medicine';
+
   const ayushText = isAyushMode
     ? 'Prakriti: Vata-Kapha, Vikriti: Vata Vriddhi (Sandhigata Vata), Agni: Manda (Impaired digestion), Koshtha: Krura. Dhatu Affected: Asthi, Majja, Mamsa. Nidana: Sheeta-Ruksha Ahara-Vihara.'
     : null;
@@ -48,8 +54,8 @@ export function generateStructuredClinicalSummary(input: SummaryGenerationInput)
   const markdown = `### **AI-generated draft — physician verification required.**
 
 **Patient:** ${patient.full_name} | **Age/Sex:** ${patient.age_years}Y / ${patient.gender.toUpperCase()} | **ABHA:** ${patient.abha_id || 'DEMO-P001'}  
-**Triage Acuity Score:** **${redFlagResult.priority} (${redFlagResult.hasRedFlag ? 'URGENT RESUSCITATION / FAST-TRACK' : 'ROUTINE OUTPATIENT'})**  
-**Recommended Station:** ${redFlagResult.recommendedDepartment}
+**Triage Acuity Score:** **${redFlagResult.priority} (${redFlagResult.hasRedFlag ? 'EMERGENCY FAST-TRACK' : 'ROUTINE CARE'})**  
+**Recommended Specialty:** **${recommendedSpecialty}**
 
 ---
 
@@ -71,7 +77,8 @@ export function generateStructuredClinicalSummary(input: SummaryGenerationInput)
 - ${labText}
 
 ${isAyushMode ? `#### 6. AYUSH / Ayurvedic Assessment (Draft)\n- ${ayushText}\n` : ''}
-#### ${isAyushMode ? '7' : '6'}. Red Flags & Clinical Safety Sentinel
+#### ${isAyushMode ? '7' : '6'}. Recommended Specialty & Clinical Safety Sentinel
+- **Recommended Medical Specialty:** **${recommendedSpecialty}**
 - **Trigger Symptoms:** ${redFlagResult.triggerSymptoms.join(', ') || 'No immediate emergency flags triggered'}
 - **Clinical Rationale:** ${redFlagResult.rationale || 'Stable vital risk profile.'}`;
 
@@ -84,6 +91,7 @@ ${isAyushMode ? `#### 6. AYUSH / Ayurvedic Assessment (Draft)\n- ${ayushText}\n`
     medications_summary: medsText,
     allergies_summary: allergyText,
     investigations_summary: labText,
+    recommended_specialty: recommendedSpecialty,
     ayush_summary: ayushText,
     red_flags_highlighted: redFlagResult.triggerSymptoms,
     summary_markdown: markdown,

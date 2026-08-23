@@ -1,59 +1,91 @@
 'use client';
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserRole } from '@/types/database';
-import { DemoUserProfile } from '@/types/clinical';
-import { DEMO_USERS } from '@/lib/supabase/mock-db';
 
-interface AuthContextType {
-  currentUser: DemoUserProfile;
-  setCurrentUser: (user: DemoUserProfile) => void;
-  switchRole: (role: UserRole) => void;
-  isAuthenticated: boolean;
-  logout: () => void;
+export interface ActiveUser {
+  id: string;
+  role: UserRole;
+  name: string;
+  department?: string;
+  specialty?: string;
+  badge?: string;
+  demo_id?: string;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const DEMO_USERS: Record<UserRole, ActiveUser> = {
+  patient: {
+    id: 'a1111111-1111-1111-1111-111111111111',
+    role: 'patient',
+    name: 'Aarav Sharma',
+    badge: 'Patient (ABHA: 91-4829-1029-4821)',
+    demo_id: 'DEMO-P001',
+  },
+  doctor: {
+    id: 'usr-doc-01',
+    role: 'doctor',
+    name: 'Dr. Arvind Sen, MD DM',
+    department: 'Cardiology & Internal Medicine',
+    specialty: 'Cardiology',
+    badge: 'Attending Cardiologist',
+  },
+  admin: {
+    id: 'usr-adm-01',
+    role: 'admin',
+    name: 'Vikram Joshi',
+    department: 'Hospital Operations & Triage Management',
+    badge: 'Clinical Administrator',
+  },
+};
+
+interface AuthContextType {
+  currentUser: ActiveUser;
+  setCurrentUser: (user: ActiveUser) => void;
+  switchRole: (role: UserRole) => void;
+}
+
+const AuthContext = createContext<AuthContextType>({
+  currentUser: DEMO_USERS.patient,
+  setCurrentUser: () => {},
+  switchRole: () => {},
+});
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUserState] = useState<DemoUserProfile>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('medikiosk_active_user');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return DEMO_USERS[0];
+  const [currentUser, setCurrentUser] = useState<ActiveUser>(DEMO_USERS.patient);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('medikiosk_active_user');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && (parsed.role === 'patient' || parsed.role === 'doctor' || parsed.role === 'admin')) {
+          setCurrentUser(parsed);
+        } else {
+          setCurrentUser(DEMO_USERS.patient);
         }
+      } catch (e) {
+        console.error('Error loading saved active user:', e);
       }
     }
-    return DEMO_USERS[0]; // Default: Dr. Ananya Sen
-  });
-
-  const setCurrentUser = (user: DemoUserProfile) => {
-    setCurrentUserState(user);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('medikiosk_active_user', JSON.stringify(user));
-    }
-  };
+  }, []);
 
   const switchRole = (role: UserRole) => {
-    const targetUser = DEMO_USERS.find((u) => u.role === role) || DEMO_USERS[0];
+    const targetUser = DEMO_USERS[role] || DEMO_USERS.patient;
     setCurrentUser(targetUser);
+    localStorage.setItem('medikiosk_active_user', JSON.stringify(targetUser));
   };
 
-  const logout = () => {
-    setCurrentUser(DEMO_USERS[4]); // Set to patient default
+  const handleSetCurrentUser = (user: ActiveUser) => {
+    setCurrentUser(user);
+    localStorage.setItem('medikiosk_active_user', JSON.stringify(user));
   };
 
   return (
     <AuthContext.Provider
       value={{
         currentUser,
-        setCurrentUser,
+        setCurrentUser: handleSetCurrentUser,
         switchRole,
-        isAuthenticated: true,
-        logout,
       }}
     >
       {children}
@@ -62,9 +94,5 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 }

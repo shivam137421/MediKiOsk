@@ -1,46 +1,27 @@
 # MediKiosk — Checkpoints & Build Log
 
-This document tracks the checkpoint-by-checkpoint development of the **MediKiosk** AI-Assisted Clinical Intake Platform. Every checkpoint has been validated and verified working end-to-end.
+This document tracks the checkpoint-by-checkpoint development and workflow redesign of the **MediKiosk** AI-Assisted Patient Intake & Doctor Appointment System.
 
 ---
 
-## Checkpoints Roadmap
+## Workflow Redesign Milestones (5-Step Linear Architecture)
 
-| Checkpoint | Description | Status | Verification Result |
+| Change Request | Focus | Status | Verification Summary |
 |---|---|---|---|
-| **CP-01** | Project scaffold: Next.js + TS + Tailwind + Lucide/UI, repo structure, documentation files | **Completed** | Full build & typecheck passed (Code 0), HTTP 200 OK on localhost:3000 |
-| **CP-02** | Supabase database schema, migrations, RLS policies, Auth setup | **Completed** | Live Supabase project wired, full_setup.sql migration ready, dataService integrated |
-| **CP-03** | Role system & protected routing per role (Patient, Doctor, Triage, Admin) | **Completed** | RBAC AuthProvider, RoleGuard, and /auth/login portal with 1-click switcher |
-| **CP-04** | Patient kiosk shell: identify → language → consent | **Completed** | ABHA ID, 1-click demo patients, Hindi/English toggle, audible consent |
-| **CP-05** | Clinical interview engine (ontology + adaptive logic, touch input) | **Completed** | Multi-branch symptom tree (Chest pain, Joint pain/AYUSH, Fever), 1-10 severity slider, red-flag checks |
-| **CP-06** | Voice integration (ASR/TTS, provider-abstracted) | **Completed** | Web Speech API speech-to-text, TTS question audio prompts, soundwave visualizer |
-| **CP-07** | Document upload + storage + OCR pipeline (provider-abstracted) | **Completed** | Multi-doc OCR interface supporting prescriptions, lab panels, discharge cards |
-| **CP-08** | Medical entity extraction + confidence validation layer | **Completed** | Extracted meds, abnormal lab flags, confidence tiers (High/Needs Review) |
-| **CP-09** | Medical timeline engine | **Completed** | Chronological timeline builder linking historical conditions + OCR labs + intake visits |
-| **CP-10** | AI clinical summary generation | **Completed** | OLDCARTS structured summary synthesis with mandatory physician verification label |
-| **CP-11** | Triage dashboard + live red-flag alerts | **Completed** | Live Manchester acuity queue, bay assignment, and real-time triage escalation |
-| **CP-12** | Doctor dashboard (queue → summary → edit/confirm → notes) | **Completed** | Clinical review, full markdown edit, timeline viewer, suggestions, sign-off |
-| **CP-13** | Admin dashboard (users, departments, analytics, config, audit) | **Completed** | Volume analytics, feature flags (AYUSH, Suggestions, Timeout), audit table |
-| **CP-14** | Dedicated AYUSH / Ayurveda mode | **Completed** | Prakriti, Vikriti, Agni, Dhatu, Sandhigata Vata case-taking flow and summaries |
-| **CP-15** | Doctor-controlled AI suggestions | **Completed** | Toggleable decision support with explicit physician Accept/Dismiss controls |
-| **CP-16** | Comprehensive audit logging + security hardening pass | **Completed** | Immutable audit logs with timestamp, actor role, IP, and clinical actions |
-| **CP-17** | Cross-dashboard realtime sync | **Completed** | Reactive state broadcast + live dataService subscriptions between Kiosk, Triage, Doctor, Admin |
-| **CP-18** | End-to-end tests (unit, integration, browser flow) | **Completed** | Automated Section 17 test suite passed (`npm run test:e2e`) |
-| **CP-19** | UI/UX polish pass (states, responsiveness, accessibility) | **Completed** | Glassmorphism, clinical theme tokens, soundwave animations, WCAG contrast |
-| **CP-20** | Final demo data, full end-to-end acceptance run, deployment readiness | **Completed** | Complete acceptance scenario passed without dead ends or console errors |
+| **CR-01** | Remove all Hackathon / SIH / 26047 competition branding across repo | **Completed** | Full search & replace verified. Clean standalone product framing. |
+| **CR-02** | Reduce to Three Roles (Patient, Doctor, Admin) | **Completed** | Removed standalone Triage role. Folded emergency priority into Admin queue. |
+| **CR-03** | Step 1: Patient Voice-First AI Conversation & Clarifying MCQs | **Completed** | Hindi/English voice intake, clarifying MCQs, doc upload & recommended specialty. |
+| **CR-04** | Step 2: Admin Queue & Doctor Specialty Assignment | **Completed** | Live queue with emergency jump to top. Admin assigns matching specialty doctor. |
+| **CR-05** | Step 3: Doctor Review & Appointment Slot Proposal | **Completed** | Doctor reviews full pre-visit draft & timeline, proposes date/time slot. |
+| **CR-06** | Step 4: Admin Appointment Confirmation | **Completed** | Admin confirms proposed slot, pushes live to patient & logs audit trail. |
+| **CR-07** | Step 5: Patient Confirmed Appointment Card | **Completed** | Patient dashboard displays confirmed card with doctor name, time, location & directives. |
+| **CR-08** | Emergency Queue Jump Verification | **Completed** | Automated test verified emergency patient jumps ahead of first-come queue. |
+| **CR-09** | UI Simplification Pass | **Completed** | 3 clear landing options, continuous patient intake, streamlined doctor & admin views. |
 
 ---
 
-## Detailed Checkpoint Logs Summary
+## Verification Results
 
-### CP-01 through CP-20 Implementation Highlights:
-1. **Frontend Architecture:** Next.js 14.2.15 (App Router), React 18.3.1, TypeScript 5.6.3, Tailwind CSS 3.4.14.
-2. **Database & Migrations:** 24 PostgreSQL tables with RLS and seed demo data in [supabase/migrations/full_setup.sql](file:///d:/Desktop/MediKiOsk/supabase/migrations/full_setup.sql).
-3. **RBAC & Security:** `AuthProvider` & `RoleGuard` enforcing role policies for Patient, Doctor, Triage, and Admin.
-4. **Clinical Intake Engine:** Multilingual voice + touch interface in Hindi and English with audible consent explanation.
-5. **OCR & Entity AI:** Pluggable OCR parser, abnormal lab flaggers, source-attributed medication tables.
-6. **Red-Flag Sentinel:** Real-time emergency detection (ACS/STEMI, Respiratory distress, Neurological deficits).
-7. **Triage Live Station:** Real-time priority queue, emergency bay routing, fast-track dispatch.
-8. **Physician Hub:** Draft summary review, markdown editor, medical timeline, opt-in AI suggestions, digital sign-off.
-9. **AYUSH Mode:** Prakriti, Vikriti, Dhatu, Agni, Ahara-Vihara case-taking and summary integration.
-10. **Compliance & Verification:** Full Section 17 End-to-End Acceptance Test validated.
+- **TypeScript Compilation (`npm run typecheck`):** Code 0 (0 errors).
+- **End-to-End Test (`npm run test:e2e`):** All 6 steps passed with 100% success rate.
+- **Route Endpoints:** All routes (`/`, `/patient`, `/doctor`, `/admin`, `/auth/login`) return **HTTP 200 OK**.

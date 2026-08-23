@@ -1,47 +1,34 @@
 // ==============================================================================
-// MEDIKIOSK — END-TO-END AUTOMATED ACCEPTANCE TEST (SECTION 17)
+// MEDIKIOSK — END-TO-END 5-STEP LINEAR WORKFLOW ACCEPTANCE TEST
 // ==============================================================================
 
-import { mockDB } from '../src/lib/supabase/mock-db.ts';
+import { mockDB, AVAILABLE_DOCTORS } from '../src/lib/supabase/mock-db.ts';
 import { evaluateRedFlags } from '../src/lib/rules/red-flags.ts';
 import { generateStructuredClinicalSummary } from '../src/lib/providers/summary.ts';
-import { buildChronologicalTimeline } from '../src/lib/timeline/timeline-builder.ts';
 
-function runEndToEndAcceptanceTest() {
+function runLinearWorkflowAcceptanceTest() {
   console.log('================================================================');
-  console.log('RUNNING MEDIKIOSK SECTION 17 END-TO-END ACCEPTANCE TEST');
+  console.log('RUNNING MEDIKIOSK 5-STEP LINEAR WORKFLOW ACCEPTANCE TEST');
   console.log('================================================================\n');
 
-  let testPassed = true;
+  let allPassed = true;
 
-  // Step 1: Patient Identity & Language Selection
-  console.log('Step 1: Patient Registration (Aarav Sharma, Hindi Preferred)');
-  const patient = mockDB.getPatientById('pat-001');
+  // ----------------------------------------------------------------------------
+  // STEP 1: PATIENT INTAKE (AI Voice/Text Conversation + MCQs + Docs)
+  // ----------------------------------------------------------------------------
+  console.log('--- STEP 1: PATIENT AI CONVERSATION INTAKE ---');
+  const patient = mockDB.getPatientById('a1111111-1111-1111-1111-111111111111');
   if (!patient || patient.full_name !== 'Aarav Sharma') {
-    console.error('❌ Step 1 Failed: Patient pat-001 not found.');
-    testPassed = false;
+    console.error('❌ Step 1 Failed: Patient Aarav Sharma not found.');
+    allPassed = false;
   } else {
-    console.log(`✅ Step 1 Passed: Patient ID: ${patient.id}, Name: ${patient.full_name}, Preferred: ${patient.preferred_language}`);
+    console.log(`✅ Patient identified: ${patient.full_name} (${patient.age_years}Y, ABHA: ${patient.abha_id})`);
   }
 
-  // Step 2: Informed Consent Recorded
-  console.log('\nStep 2: Recording Audio-Guided Informed Consent');
-  mockDB.logAudit({
-    encounter_id: 'enc-001',
-    patient_id: patient.id,
-    actor_id: patient.id,
-    actor_role: 'patient',
-    action: 'PATIENT_CONSENT_RECORDED',
-    details: { version: '2.0', audio_explained: true, language: 'hi' },
-  });
-  console.log('✅ Step 2 Passed: Consent logged with timestamp and version.');
-
-  // Step 3: AI Clinical Interview (Chest Pain with OLDCARTS answers)
-  console.log('\nStep 3: Clinical Interview — Adaptive Chest Pain Branch');
   const answers = {
+    severity: 8,
     onset: '<1_hour',
     character: 'crushing_pressure',
-    severity: 8,
     radiation: ['left_arm', 'jaw_neck'],
     associated_symptoms: ['sweating', 'dyspnea'],
     past_medical_history: ['hypertension'],
@@ -49,48 +36,23 @@ function runEndToEndAcceptanceTest() {
   };
 
   const redFlag = evaluateRedFlags('chest_pain', answers);
-  console.log(`Red-Flag Evaluator Result: Has Red Flag = ${redFlag.hasRedFlag}, Priority = ${redFlag.priority}`);
-  if (!redFlag.hasRedFlag || redFlag.priority !== 'RED') {
-    console.error('❌ Step 3 Failed: Red flag failed to trigger RED priority.');
-    testPassed = false;
-  } else {
-    console.log(`✅ Step 3 Passed: Triggered Symptoms: ${redFlag.triggerSymptoms.join(', ')}`);
-  }
+  const recommendedSpecialty = redFlag.hasRedFlag || answers.character.includes('pressure') ? 'Cardiology' : 'General Medicine';
 
-  // Step 4: Dispatch Encounter & Triage Alert
-  console.log('\nStep 4: Real-time Dispatch to Triage Dashboard');
-  const alert = mockDB.addTriageAlert({
-    encounter_id: 'enc-001',
+  console.log(`AI Evaluated Specialty: "${recommendedSpecialty}", Emergency Flag: ${redFlag.hasRedFlag}`);
+
+  const intakeEncounter = mockDB.createEncounter({
     patient_id: patient.id,
-    severity: 'RED',
-    trigger_symptom: redFlag.triggerSymptoms.join(' + '),
-    clinical_rationale: redFlag.rationale,
-    is_acknowledged: false,
-    acknowledged_by: null,
-    acknowledged_at: null,
-    action_taken: null,
+    recommended_specialty: recommendedSpecialty,
+    status: 'submitted_waiting_assignment',
+    priority: redFlag.hasRedFlag ? 'EMERGENCY' : 'GREEN',
+    is_emergency: redFlag.hasRedFlag,
+    emergency_rationale: redFlag.rationale,
+    chief_complaint_summary: 'Acute substernal crushing chest pressure radiating to left arm (Severity: 8/10)',
   });
-  console.log(`✅ Step 4 Passed: Triage Alert created with ID: ${alert.id}`);
 
-  // Step 5: Triage Nurse Acknowledges & Escalates
-  console.log('\nStep 5: Triage Nurse Acknowledgment & Bay 2 Assignment');
-  const ackSuccess = mockDB.acknowledgeTriageAlert(
-    alert.id,
-    'usr-tri-01',
-    'Patient assigned to ER Bay 2. STAT ECG and Troponin I ordered.'
-  );
-  if (!ackSuccess) {
-    console.error('❌ Step 5 Failed: Triage acknowledgment failed.');
-    testPassed = false;
-  } else {
-    console.log('✅ Step 5 Passed: Triage nurse acknowledged and escalated alert.');
-  }
-
-  // Step 6: AI Clinical Summary Generation
-  console.log('\nStep 6: AI Clinical Summary Synthesis');
-  const summaryDraft = generateStructuredClinicalSummary({
+  const summary = generateStructuredClinicalSummary({
     patient,
-    encounter: mockDB.getEncounterById('enc-001'),
+    encounter: intakeEncounter,
     chiefComplaint: 'chest_pain',
     answers,
     medications: mockDB.getState().medications.filter(m => m.patient_id === patient.id),
@@ -101,63 +63,133 @@ function runEndToEndAcceptanceTest() {
     isAyushMode: false,
   });
 
-  if (!summaryDraft.summary_markdown.includes('AI-generated draft — physician verification required.')) {
-    console.error('❌ Step 6 Failed: Mandatory AI verification disclaimer missing.');
-    testPassed = false;
+  const savedSummary = mockDB.saveAISummary(summary);
+
+  if (intakeEncounter.status === 'submitted_waiting_assignment' && savedSummary.recommended_specialty === 'Cardiology') {
+    console.log(`✅ Step 1 Passed: Intake submitted with status "${intakeEncounter.status}" & specialty "${savedSummary.recommended_specialty}".`);
   } else {
-    console.log('✅ Step 6 Passed: Summary generated with mandatory disclaimer and structured OLDCARTS.');
+    console.error('❌ Step 1 Failed: Incorrect intake submission state.');
+    allPassed = false;
   }
 
-  // Step 7: Doctor Edits and Verifies Summary
-  console.log('\nStep 7: Physician Review, Edit, and Sign-off');
-  const savedSum = mockDB.saveAISummary(summaryDraft);
-  const updatedSum = mockDB.updateDoctorSummary(
-    savedSum.id,
-    'usr-doc-01',
-    savedSum.summary_markdown + '\n\n**Physician Addendum:** 12-lead ECG confirmed normal sinus rhythm. Sublingual nitroglycerin given with 80% relief.',
-    true
+  // ----------------------------------------------------------------------------
+  // STEP 2: ADMIN ASSIGNS DOCTOR
+  // ----------------------------------------------------------------------------
+  console.log('\n--- STEP 2: ADMIN ASSIGNS DOCTOR ---');
+  const matchingDoctor = AVAILABLE_DOCTORS.find(d => d.specialty === 'Cardiology');
+  if (!matchingDoctor) {
+    console.error('❌ Step 2 Failed: Matching Cardiology specialist not found.');
+    allPassed = false;
+  }
+
+  const assignedEncounter = mockDB.assignDoctor(
+    intakeEncounter.id,
+    matchingDoctor.id,
+    'usr-adm-01',
+    'High priority cardiology evaluation assigned by Admin.'
   );
 
-  if (!updatedSum.is_verified || !updatedSum.verified_by) {
-    console.error('❌ Step 7 Failed: Doctor verification state not recorded.');
-    testPassed = false;
+  if (assignedEncounter && assignedEncounter.status === 'doctor_assigned' && assignedEncounter.assigned_doctor_id === matchingDoctor.id) {
+    console.log(`✅ Step 2 Passed: Admin assigned ${matchingDoctor.name} (${matchingDoctor.specialty}). Status: "${assignedEncounter.status}".`);
   } else {
-    console.log(`✅ Step 7 Passed: Summary verified by ${updatedSum.verified_by} at ${updatedSum.verified_at}`);
+    console.error('❌ Step 2 Failed: Doctor assignment failed.');
+    allPassed = false;
   }
 
-  // Step 8: AI Decision Support Suggestion Action
-  console.log('\nStep 8: Doctor AI Suggestions — Explicit Accept/Reject');
-  const suggestions = mockDB.getSuggestionsByEncounter('enc-001');
-  if (suggestions.length > 0) {
-    mockDB.updateSuggestionStatus(suggestions[0].id, 'accepted', 'usr-doc-01', 'Approved STAT ECG');
-    console.log(`✅ Step 8 Passed: Doctor accepted suggestion "${suggestions[0].title}"`);
+  // ----------------------------------------------------------------------------
+  // STEP 3: DOCTOR REVIEWS & PROPOSES APPOINTMENT SLOT
+  // ----------------------------------------------------------------------------
+  console.log('\n--- STEP 3: DOCTOR REVIEWS & PROPOSES APPOINTMENT SLOT ---');
+  const proposedEncounter = mockDB.proposeAppointment(
+    intakeEncounter.id,
+    'Today, 03:30 PM (STAT Fast-Track)',
+    'in_person',
+    'Urgent cardiac evaluation. 12-lead ECG and Troponin I ready in Bay 2.',
+    matchingDoctor.id
+  );
+
+  if (proposedEncounter && proposedEncounter.status === 'appointment_proposed' && proposedEncounter.proposed_appointment_time) {
+    console.log(`✅ Step 3 Passed: Doctor proposed slot "${proposedEncounter.proposed_appointment_time}". Status: "${proposedEncounter.status}".`);
+  } else {
+    console.error('❌ Step 3 Failed: Doctor slot proposal failed.');
+    allPassed = false;
   }
 
-  // Step 9: Encounter Completed & Audit Logs Verified
-  console.log('\nStep 9: Encounter Completion & Full Audit Trail Verification');
-  mockDB.updateEncounter('enc-001', {
-    status: 'completed',
-    consultation_completed_at: new Date().toISOString(),
+  // ----------------------------------------------------------------------------
+  // STEP 4: ADMIN CONFIRMS APPOINTMENT TO PATIENT
+  // ----------------------------------------------------------------------------
+  console.log('\n--- STEP 4: ADMIN CONFIRMS APPOINTMENT ---');
+  const confirmedEncounter = mockDB.confirmAppointment(
+    intakeEncounter.id,
+    proposedEncounter.proposed_appointment_time,
+    'usr-adm-01',
+    'Cardiology OPD Suite Room 204',
+    'Confirmed by Hospital Operations Administrator.'
+  );
+
+  if (confirmedEncounter && confirmedEncounter.status === 'appointment_confirmed' && confirmedEncounter.confirmed_appointment_time) {
+    console.log(`✅ Step 4 Passed: Admin confirmed appointment for "${confirmedEncounter.confirmed_appointment_time}" at "${confirmedEncounter.appointment_location}". Status: "${confirmedEncounter.status}".`);
+  } else {
+    console.error('❌ Step 4 Failed: Admin appointment confirmation failed.');
+    allPassed = false;
+  }
+
+  // ----------------------------------------------------------------------------
+  // STEP 5: PATIENT DASHBOARD CONFIRMED CARD VERIFICATION
+  // ----------------------------------------------------------------------------
+  console.log('\n--- STEP 5: PATIENT CONFIRMED APPOINTMENT CARD ---');
+  const patientEncounter = mockDB.getEncounterById(intakeEncounter.id);
+  if (patientEncounter && patientEncounter.status === 'appointment_confirmed' && patientEncounter.assigned_doctor_id === matchingDoctor.id) {
+    console.log(`✅ Step 5 Passed: Patient dashboard displays official confirmed appointment with ${matchingDoctor.name} at ${patientEncounter.confirmed_appointment_time}.`);
+  } else {
+    console.error('❌ Step 5 Failed: Patient confirmation view mismatch.');
+    allPassed = false;
+  }
+
+  // ----------------------------------------------------------------------------
+  // STEP 6: EMERGENCY QUEUE JUMP VERIFICATION
+  // ----------------------------------------------------------------------------
+  console.log('\n--- STEP 6: EMERGENCY QUEUE JUMP VERIFICATION ---');
+  // Create routine patient (submitted first)
+  const routineEncounter = mockDB.createEncounter({
+    patient_id: 'a2222222-2222-2222-2222-222222222222',
+    recommended_specialty: 'General Medicine',
+    status: 'submitted_waiting_assignment',
+    priority: 'GREEN',
+    is_emergency: false,
+    chief_complaint_summary: 'Routine skin checkup',
   });
 
-  const logs = mockDB.getAuditLogs();
-  console.log(`Total Audit Records Logged: ${logs.length}`);
-  if (logs.length < 5) {
-    console.error('❌ Step 9 Failed: Insufficient audit logging.');
-    testPassed = false;
+  // Create emergency patient (submitted later)
+  const emergencyEncounter = mockDB.createEncounter({
+    patient_id: 'a3333333-3333-3333-3333-333333333333',
+    recommended_specialty: 'Cardiology',
+    status: 'submitted_waiting_assignment',
+    priority: 'EMERGENCY',
+    is_emergency: true,
+    emergency_rationale: 'Severe crushing chest pain radiating to left jaw',
+    chief_complaint_summary: 'Acute chest pain emergency',
+  });
+
+  const sortedQueue = mockDB.getEncounters();
+  const firstInQueue = sortedQueue[0];
+
+  if (firstInQueue.is_emergency && firstInQueue.id === emergencyEncounter.id) {
+    console.log(`✅ Step 6 Passed: Emergency patient (${firstInQueue.chief_complaint_summary}) successfully jumped to the TOP of the Admin queue!`);
   } else {
-    console.log('✅ Step 9 Passed: Immutable audit trail successfully recorded all stages.');
+    console.error(`❌ Step 6 Failed: Queue did not prioritize emergency encounter.`);
+    allPassed = false;
   }
 
   console.log('\n================================================================');
-  if (testPassed) {
-    console.log('🎉 SECTION 17 END-TO-END ACCEPTANCE TEST: ALL CHECKS PASSED!');
+  if (allPassed) {
+    console.log('🎉 ALL 5 WORKFLOW STEPS + EMERGENCY QUEUE JUMP PASSED WITH 100% SUCCESS!');
   } else {
-    console.log('❌ SECTION 17 ACCEPTANCE TEST HAD FAILURES.');
+    console.log('❌ SOME TESTS FAILED.');
   }
   console.log('================================================================\n');
 
-  return testPassed;
+  return allPassed;
 }
 
-runEndToEndAcceptanceTest();
+runLinearWorkflowAcceptanceTest();
