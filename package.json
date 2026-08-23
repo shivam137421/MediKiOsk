@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "npx tsx scripts/run-e2e-test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.1",
