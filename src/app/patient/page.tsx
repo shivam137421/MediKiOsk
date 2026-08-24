@@ -95,7 +95,7 @@ export default function PatientPortalPage() {
   // FIX 1 & 2: Voice & Adaptive Interview State
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isAutoAdvancing, setIsAutoAdvancing] = useState(false);
+  const [isIntakeComplete, setIsIntakeComplete] = useState(false);
   const [inputText, setInputText] = useState('');
   const [liveTranscript, setLiveTranscript] = useState('');
   const [clinicalSlots, setClinicalSlots] = useState<ExtractedClinicalSlots>({});
@@ -166,6 +166,16 @@ export default function PatientPortalPage() {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [recommendedSpecialty, setRecommendedSpecialty] = useState<string>('General Medicine');
 
+  // Manual Step 2 Navigation Action
+  const handleProceedToStep2 = () => {
+    console.log('[Patient Portal] Patient tapped Proceed to Step 2 (Ayurvedic Assessment).');
+    speechService.stopSpeaking();
+    speechService.stopListening();
+    setIsSpeaking(false);
+    setIsListening(false);
+    setActiveStep('ayush');
+  };
+
   // Fresh Intake Reset & Patient Switching
   const startFreshIntake = (patient?: Patient) => {
     const targetPatient = patient || activePatient;
@@ -177,6 +187,9 @@ export default function PatientPortalPage() {
     setGeneratedSummary(null);
     setInputText('');
     setLiveTranscript('');
+    setIsIntakeComplete(false);
+    setIsSpeaking(false);
+    setIsListening(false);
     setRecommendedSpecialty('General Medicine');
     setConversationTurns([
       {
@@ -364,14 +377,14 @@ export default function PatientPortalPage() {
 
       if (!isReplyAskingQuestion && (isEngineComplete || dynamicNext.isReadyForStep2)) {
         isIntakeComplete = true;
-        setIsAutoAdvancing(true);
+        setIsIntakeComplete(true);
         // Ensure closing text is crisp if not already
         if (!adaptiveInterviewEngine.isClosingStatement(nextQuestionText)) {
           nextQuestionText = `${nextQuestionText} ${adaptiveInterviewEngine.getClosingStatement(language)}`;
         }
       } else {
         isIntakeComplete = false;
-        setIsAutoAdvancing(false);
+        setIsIntakeComplete(false);
       }
 
       const aiTurn: ClinicalConversationTurn = {
@@ -384,37 +397,11 @@ export default function PatientPortalPage() {
       setConversationTurns([...newTurns, aiTurn]);
       setClinicalSlots(mergedSlots);
 
-      // 4. Speak response via Indian Accent TTS & Auto-progress if complete
+      // 4. Speak response via Indian Accent TTS (Manual button controls Step 2 navigation)
       setIsSpeaking(true);
-
-      let hasNavigated = false;
-      const doStep2Navigation = () => {
-        if (hasNavigated) return;
-        hasNavigated = true;
-        console.log('[Patient Portal] Step 1 Intake complete -> Auto-navigating to Step 2 (Ayurvedic Assessment)...');
-        setIsAutoAdvancing(false);
-        speechService.stopSpeaking();
-        speechService.stopListening();
-        setActiveStep('ayush');
-      };
-
-      if (isIntakeComplete) {
-        setIsAutoAdvancing(true);
-        console.log('[Patient Portal] Structured completion active. Scheduling auto-progression to Step 2.');
-
-        // Play speech and navigate upon completion
-        speechService.speak(nextQuestionText, language, () => {
-          setIsSpeaking(false);
-          setTimeout(doStep2Navigation, 400);
-        });
-
-        // Guaranteed fallback navigation within 3 seconds so screen ALWAYS transitions
-        setTimeout(doStep2Navigation, 3000);
-      } else {
-        speechService.speak(nextQuestionText, language, () => {
-          setIsSpeaking(false);
-        });
-      }
+      speechService.speak(nextQuestionText, language, () => {
+        setIsSpeaking(false);
+      });
     })();
   };
 
@@ -937,26 +924,34 @@ export default function PatientPortalPage() {
               ))}
             </div>
 
-            {/* Auto-Progression Status Banner */}
-            {isAutoAdvancing && (
-              <div className="bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-emerald-500/15 border border-emerald-500/30 p-4 rounded-2xl flex items-center justify-between animate-pulse">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-sm">
-                    <CheckCircle2 className="w-5 h-5" />
+            {/* Prominent Manual "Continue to Step 2" Action Card (Appears when interview is complete) */}
+            {isIntakeComplete && (
+              <div className="bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/15 border-2 border-emerald-500/40 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md animate-fade-in">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-md shrink-0">
+                    <CheckCircle2 className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                      {language === 'hi' ? 'चिकित्सीय इतिहास पूर्ण दर्ज!' : 'Clinical Intake Complete!'}
+                    <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
+                      {language === 'hi' ? 'चिकित्सीय इतिहास पूर्ण दर्ज कर लिया गया है!' : 'Clinical Intake Recorded!'}
                     </p>
-                    <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                      {language === 'hi' ? 'चरण 2 (आयुर्वेद एवं जीवनशैली परीक्षा) पर स्वतः आगे बढ़ रहे हैं...' : 'Auto-progressing to Step 2: Ayurvedic Assessment...'}
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                      {language === 'hi' 
+                        ? 'यदि आप कुछ और बताना चाहते हैं तो नीचे लिखें या बोलें, अथवा जब आप तैयार हों तो बटन दबाकर अगले चरण पर आगे बढ़ें।' 
+                        : 'You can still add more details below if desired, or tap the button when ready to proceed to Step 2.'}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 animate-bounce">
-                  <span>Step 2</span>
+
+                <button
+                  id="btn-proceed-step2"
+                  onClick={handleProceedToStep2}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+                >
+                  <Leaf className="w-4 h-4 text-emerald-100" />
+                  <span>{language === 'hi' ? 'आयुर्वेद परीक्षा शुरू करें (चरण 2)' : 'Continue to Step 2 (Ayush Care)'}</span>
                   <ArrowRight className="w-4 h-4" />
-                </div>
+                </button>
               </div>
             )}
 
@@ -985,7 +980,7 @@ export default function PatientPortalPage() {
 
               <button
                 onClick={() => handlePatientMessageSend()}
-                className="p-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 text-white transition-all shrink-0"
+                className="p-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 text-white transition-all shrink-0 cursor-pointer"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -997,27 +992,29 @@ export default function PatientPortalPage() {
                 <span className="text-slate-400 self-center text-[11px]">Quick Tests:</span>
                 <button
                   onClick={() => handlePatientMessageSend(language === 'hi' ? 'सीने में 2 घंटे से तेज दबाव और पसीना आ रहा है' : 'I have crushing chest pressure radiating to my left arm with cold sweats for 2 hours')}
-                  className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-[11px]"
+                  className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-[11px] cursor-pointer"
                 >
                   ⚡ {language === 'hi' ? 'सीने में दबाव (Cardiology Flag)' : 'Chest Pressure (Cardio Flag)'}
                 </button>
                 <button
                   onClick={() => handlePatientMessageSend(language === 'hi' ? 'दोनों घुटनों में सुबह अकड़न और तेज दर्द होता है' : 'I have chronic knee stiffness, joint cracking and difficulty walking')}
-                  className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-[11px]"
+                  className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-[11px] cursor-pointer"
                 >
                   🌿 {language === 'hi' ? 'घुटनों में दर्द (Ayurveda Joint)' : 'Knee Joint Pain (Ayurveda)'}
                 </button>
               </div>
 
               <button
-                onClick={() => {
-                  speechService.stopSpeaking();
-                  speechService.stopListening();
-                  setActiveStep('ayush');
-                }}
-                className="px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 font-bold text-white text-xs shadow-md transition-all flex items-center gap-1.5 ml-auto"
+                id="btn-bottom-proceed-step2"
+                onClick={handleProceedToStep2}
+                className={`px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all flex items-center gap-1.5 ml-auto cursor-pointer ${
+                  isIntakeComplete
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20 ring-2 ring-emerald-400/30'
+                    : 'bg-sky-500 hover:bg-sky-600 text-white'
+                }`}
               >
-                <span>Proceed to Step 2: Ayurvedic Assessment</span>
+                <Leaf className="w-3.5 h-3.5" />
+                <span>{language === 'hi' ? 'आयुर्वेद परीक्षा शुरू करें (चरण 2)' : 'Proceed to Step 2: Ayurvedic Assessment'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

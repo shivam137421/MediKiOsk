@@ -456,9 +456,44 @@ async function runCompletePatientDashboardE2ETest() {
     allPassed = false;
   }
 
+  // ----------------------------------------------------------------------------
+  // TEST 10: MANUAL STEP 2 PROCEED & POST-CLOSING CONVERSATION CONTINUITY
+  // ----------------------------------------------------------------------------
+  console.log('\n--- TEST 10: MANUAL STEP 2 PROCEED & POST-CLOSING CONVERSATION CONTINUITY ---');
+  let postClosingSlots = {
+    chiefComplaint: 'Febrile Illness / Pyrexia',
+    durationOnset: '2 days',
+    characterQuality: 'Chills and body ache',
+    severityNumber: 6,
+    radiationLocation: 'None reported',
+    pastHistory: ['Paracetamol taken'],
+  };
+
+  // 1. Initial State: Intake is complete
+  const isCompleteInitial = adaptiveInterviewEngine.isClinicalIntakeComplete(postClosingSlots, 5);
+  const qClosing = adaptiveInterviewEngine.generateNextQuestion(postClosingSlots, 'hi');
+  console.log('Initial Closing State Complete:', isCompleteInitial, '| isReadyForStep2:', qClosing.isReadyForStep2);
+
+  // 2. Patient sends an additional message after closing (instead of immediately tapping Continue):
+  const additionalPatientText = 'एक और बात, मुझे सिर में भी भारीपन लग रहा है';
+  postClosingSlots = adaptiveInterviewEngine.parsePatientInput(additionalPatientText, postClosingSlots);
+  const isStillComplete = adaptiveInterviewEngine.isClinicalIntakeComplete(postClosingSlots, 6);
+  const qAfterAdditional = adaptiveInterviewEngine.generateNextQuestion(postClosingSlots, 'hi');
+
+  console.log('Post-Closing Additional Input Parsed -> Slots Associated:', postClosingSlots.associatedSymptoms);
+  console.log('Is Still Complete after addition:', isStillComplete, '| Next Question:', qAfterAdditional.questionText);
+
+  const test10Passed = isCompleteInitial && isStillComplete && qAfterAdditional.isReadyForStep2;
+  if (test10Passed) {
+    console.log('✅ Test 10 Passed: Post-closing additional patient messages are parsed smoothly and interview remains ready for manual Step 2 navigation!');
+  } else {
+    console.error('❌ Test 10 Failed: Post-closing message caused failure in state.');
+    allPassed = false;
+  }
+
   console.log('\n================================================================');
   if (allPassed) {
-    console.log('🎉 ALL STEP 4, ADMIN HANDOFF, BUG 1, BUG 2, AND BUG 3 TESTS PASSED WITH 100% SUCCESS!');
+    console.log('🎉 ALL 10 TESTS (STEP 4, ADMIN HANDOFF, BUG 1-3, AND MANUAL STEP 2 PROCEED) PASSED WITH 100% SUCCESS!');
   } else {
     console.log('❌ SOME TESTS FAILED.');
   }
