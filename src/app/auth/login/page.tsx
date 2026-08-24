@@ -1,72 +1,87 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Stethoscope, 
   UserCheck, 
   ShieldCheck, 
   ArrowRight, 
-  Sparkles, 
-  Lock,
-  HeartPulse,
-  Building2
+  Lock, 
+  Mail, 
+  KeyRound, 
+  HeartPulse, 
+  AlertCircle, 
+  CheckCircle2,
+  Sparkles,
+  Eye,
+  EyeOff
 } from 'lucide-react';
-import { useAuth, DEMO_USERS } from '@/lib/auth';
+import { useAuth, REGISTERED_ACCOUNTS } from '@/lib/auth';
 import { UserRole } from '@/types/database';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { currentUser, switchRole, setCurrentUser } = useAuth();
-  const [selectedRole, setSelectedRole] = useState<UserRole>(currentUser.role);
-  const [hospitalId, setHospitalId] = useState('');
-  const [password, setPassword] = useState('');
+  const searchParams = useSearchParams();
+  const redirectPath = searchParams.get('redirect');
 
-  const demoAccounts = [
-    {
-      id: 'a1111111-1111-1111-1111-111111111111',
-      role: 'patient' as UserRole,
-      name: 'Aarav Sharma',
-      badge: 'Patient (ABHA: 91-4829-1029-4821)',
-      desc: 'Voice & text intake, document upload, appointment tracker',
-      route: '/patient',
-    },
-    {
-      id: 'usr-doc-01',
-      role: 'doctor' as UserRole,
-      name: 'Dr. Arvind Sen, MD DM',
-      badge: 'Attending Cardiologist',
-      desc: 'Assigned patient queue, clinical draft review, propose appointment',
-      route: '/doctor',
-    },
-    {
-      id: 'usr-adm-01',
-      role: 'admin' as UserRole,
-      name: 'Vikram Joshi',
-      badge: 'Clinical Administrator',
-      desc: 'Incoming patient queue, doctor assignment, appointment confirmation, audit logs',
-      route: '/admin',
-    },
-  ];
+  const { login } = useAuth();
+  const [activeTab, setActiveTab] = useState<UserRole>('patient');
+  const [identifier, setIdentifier] = useState('aarav@medikiosk.in');
+  const [password, setPassword] = useState('password123');
+  const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleQuickLogin = (account: typeof demoAccounts[0]) => {
-    switchRole(account.role);
-    setCurrentUser({
-      id: account.id,
-      role: account.role,
-      name: account.name,
-      badge: account.badge,
-    });
-    router.push(account.route);
+  // Tab change handler
+  const handleTabChange = (role: UserRole) => {
+    setActiveTab(role);
+    setErrorMessage('');
+    if (role === 'patient') {
+      setIdentifier('aarav@medikiosk.in');
+      setPassword('password123');
+    } else if (role === 'doctor') {
+      setIdentifier('doctor@medikiosk.in');
+      setPassword('password123');
+    } else if (role === 'admin') {
+      setIdentifier('admin@medikiosk.in');
+      setPassword('password123');
+    }
   };
 
-  const handleManualLogin = (e: React.FormEvent) => {
+  // Real credential submission
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    switchRole(selectedRole);
-    if (selectedRole === 'patient') router.push('/patient');
-    else if (selectedRole === 'doctor') router.push('/doctor');
-    else if (selectedRole === 'admin') router.push('/admin');
+    setErrorMessage('');
+    setIsLoading(true);
+
+    try {
+      const result = await login(identifier, password, activeTab);
+      if (result.success && result.user) {
+        // Route strictly to the user's authenticated dashboard role
+        const targetRoute = redirectPath || (
+          result.user.role === 'patient' ? '/patient' :
+          result.user.role === 'doctor' ? '/doctor' : '/admin'
+        );
+        router.push(targetRoute);
+      } else {
+        setErrorMessage(result.error || 'Authentication failed. Please verify your credentials.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Login error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getTabLabel = (role: UserRole) => {
+    switch (role) {
+      case 'patient': return 'Patient Portal';
+      case 'doctor': return 'Doctor Consultation';
+      case 'admin': return 'Hospital Admin';
+      default: return role;
+    }
   };
 
   return (
@@ -75,139 +90,196 @@ export default function LoginPage() {
       {/* Header */}
       <div className="text-center mb-8">
         <div className="w-14 h-14 rounded-3xl bg-gradient-to-tr from-sky-500 to-teal-500 flex items-center justify-center text-white mx-auto shadow-lg shadow-sky-500/20 mb-3">
-          <HeartPulse className="w-7 h-7" />
+          <HeartPulse className="w-7 h-7 animate-pulse" />
         </div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-          MediKiosk Portal Authentication
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          MediKiosk Authentication
         </h1>
-        <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-          Sign in to access your designated role portal.
+        <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-md mx-auto">
+          Sign in with your verified credentials to access your clinical dashboard.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 w-full">
         
-        {/* Left Column: 1-Click Demo Profiles (7 cols) */}
-        <div className="md:col-span-7 flex flex-col gap-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Sparkles className="w-4 h-4 text-sky-500" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Instant 1-Click Role Profiles
-            </h2>
+        {/* Left Column: Real Credentials Form (7 cols) */}
+        <div className="md:col-span-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col justify-between">
+          
+          {/* Role Selection Tabs */}
+          <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-6">
+            {(['patient', 'doctor', 'admin'] as UserRole[]).map((role) => {
+              const isActive = activeTab === role;
+              const Icon = role === 'doctor' ? Stethoscope : role === 'admin' ? ShieldCheck : UserCheck;
+              return (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => handleTabChange(role)}
+                  className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    isActive
+                      ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span className="capitalize">{role}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {demoAccounts.map((account) => {
-            const isCurrent = currentUser.role === account.role;
-            const Icon = account.role === 'doctor' ? Stethoscope : account.role === 'admin' ? ShieldCheck : UserCheck;
+          {/* Error Banner */}
+          {errorMessage && (
+            <div className="mb-4 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2.5 animate-shake">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
 
-            return (
-              <button
-                key={account.id}
-                onClick={() => handleQuickLogin(account)}
-                className={`p-4 rounded-2xl border text-left transition-all flex items-start justify-between group ${
-                  isCurrent
-                    ? 'bg-sky-50/70 dark:bg-sky-950/40 border-sky-500 shadow-md ring-2 ring-sky-500/20'
-                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-sm'
-                }`}
-              >
-                <div className="flex items-start gap-3.5">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    account.role === 'doctor' ? 'bg-sky-100 dark:bg-sky-950 text-sky-600' :
-                    account.role === 'admin' ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300' :
-                    'bg-emerald-100 dark:bg-emerald-950 text-emerald-600'
-                  }`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-extrabold capitalize text-slate-900 dark:text-white">
-                        {account.role}
-                      </span>
-                      {isCurrent && (
-                        <span className="px-2 py-0.2 rounded-full text-[9px] font-bold bg-sky-500 text-white">
-                          Active
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">
-                      {account.name}
-                    </p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      {account.desc}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center text-sky-500 font-bold text-xs group-hover:translate-x-1 transition-transform self-center">
-                  <span>Enter</span>
-                  <ArrowRight className="w-4 h-4 ml-1" />
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Right Column: Custom Login Form (5 cols) */}
-        <div className="md:col-span-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
-          <form onSubmit={handleManualLogin} className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Lock className="w-4 h-4 text-slate-400" />
-              <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                Staff ID Sign In
-              </h3>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                {activeTab === 'patient' ? 'Email / ABHA ID / Mobile Number' :
+                 activeTab === 'doctor' ? 'Doctor Staff ID / Hospital Email' :
+                 'Administrator ID / Hospital Email'}
+              </label>
+              <div className="relative flex items-center">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5" />
+                <input
+                  type="text"
+                  required
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder={
+                    activeTab === 'patient' ? 'aarav@medikiosk.in or 91-4829-1029-4821' :
+                    activeTab === 'doctor' ? 'doctor@medikiosk.in or doc-108' :
+                    'admin@medikiosk.in or adm-01'
+                  }
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border rounded-2xl text-xs font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                Select Portal Role
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Account Password
               </label>
-              <select
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-sky-500"
-              >
-                <option value="patient">Patient (Intake & Appointments)</option>
-                <option value="doctor">Doctor (Consultation Hub)</option>
-                <option value="admin">Administrator (Triage & Assignment)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                User / Staff ID
-              </label>
-              <input
-                type="text"
-                value={hospitalId}
-                onChange={(e) => setHospitalId(e.target.value)}
-                placeholder="e.g. DOC-108 / ADM-01"
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-sky-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                Password / Passcode
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-sky-500"
-              />
+              <div className="relative flex items-center">
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-10 py-3 bg-slate-50 dark:bg-slate-800 border rounded-2xl text-xs font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
-              className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 font-bold text-xs shadow-md transition-all mt-2"
+              disabled={isLoading}
+              className="w-full py-3.5 rounded-2xl bg-sky-500 hover:bg-sky-600 active:scale-98 font-bold text-white text-xs sm:text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
-              Sign In to Selected Portal
+              {isLoading ? (
+                <span>Verifying Credentials...</span>
+              ) : (
+                <>
+                  <Lock className="w-4 h-4" />
+                  <span>Sign In as {activeTab.toUpperCase()}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
 
-          <div className="pt-4 border-t text-center text-[11px] text-slate-400 mt-4">
-            <span>Hospital security & role policies active</span>
+          <p className="text-[11px] text-slate-400 text-center mt-6">
+            Protected by MediKiosk RBAC Authentication. Unauthorized access attempts are monitored and logged.
+          </p>
+        </div>
+
+        {/* Right Column: Verified Demo Credentials Reference (5 cols) */}
+        <div className="md:col-span-5 flex flex-col gap-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="w-4 h-4 text-sky-500" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Demo Accounts Reference
+            </h2>
+          </div>
+
+          {REGISTERED_ACCOUNTS.map((account) => {
+            const isTabMatch = activeTab === account.role;
+            const Icon = account.role === 'doctor' ? Stethoscope : account.role === 'admin' ? ShieldCheck : UserCheck;
+
+            return (
+              <div
+                key={account.id}
+                className={`p-4 rounded-2xl border transition-all ${
+                  isTabMatch
+                    ? 'bg-sky-50/60 dark:bg-sky-950/40 border-sky-400 ring-2 ring-sky-500/20'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                      account.role === 'doctor' ? 'bg-sky-100 text-sky-600 dark:bg-sky-950' :
+                      account.role === 'admin' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' :
+                      'bg-emerald-100 text-emerald-600 dark:bg-emerald-950'
+                    }`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-extrabold capitalize text-slate-900 dark:text-white">
+                          {account.role}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">
+                          password123
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">
+                        {account.name}
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                        {account.email}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(account.role);
+                      setIdentifier(account.email);
+                      setPassword('password123');
+                      setErrorMessage('');
+                    }}
+                    className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-sky-100 hover:text-sky-600 dark:hover:bg-sky-950 text-slate-600 dark:text-slate-300 transition-colors shrink-0 cursor-pointer"
+                  >
+                    Use
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 text-xs">
+            <p className="font-semibold text-slate-800 dark:text-slate-200 mb-1">
+              🔒 Strict Role-Based Security:
+            </p>
+            <p className="text-[11px] leading-relaxed">
+              Every portal route validates the account's assigned role. Switching roles requires signing out and authenticating with the respective role credentials.
+            </p>
           </div>
         </div>
 

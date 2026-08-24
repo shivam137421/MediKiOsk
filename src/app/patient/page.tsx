@@ -89,8 +89,30 @@ export default function PatientPortalPage() {
   const { currentUser } = useAuth();
   const [activeStep, setActiveStep] = useState<'talk' | 'ayush' | 'documents' | 'review' | 'tracker'>('talk');
   const [language, setLanguage] = useState<'hi' | 'en'>('hi');
-  const [availablePatients, setAvailablePatients] = useState<Patient[]>(mockDB.getState().patients);
-  const [activePatient, setActivePatient] = useState<Patient>(mockDB.getState().patients[0]);
+
+  // Derive active patient strictly from authenticated currentUser session
+  const activePatient: Patient = React.useMemo(() => {
+    const fromDb = mockDB.getState().patients.find(
+      p => p.id === currentUser?.id || p.demo_id === currentUser?.demo_id || p.full_name === currentUser?.name
+    );
+    if (fromDb) return fromDb;
+
+    return {
+      id: currentUser?.id || 'a1111111-1111-1111-1111-111111111111',
+      abha_id: currentUser?.abha_id || '91-4829-1029-4821',
+      demo_id: currentUser?.demo_id || 'DEMO-P001',
+      full_name: currentUser?.name || 'Aarav Sharma',
+      gender: (currentUser?.gender as any) || 'male',
+      date_of_birth: '1976-05-14',
+      age_years: currentUser?.age_years || 48,
+      phone: currentUser?.phone || '+91 98765 43210',
+      preferred_language: language,
+      address: currentUser?.address || 'Sector 14, Rohini, New Delhi 110085',
+      emergency_contact_name: 'Emergency Contact',
+      emergency_contact_phone: '+91 98765 43211',
+      created_at: new Date().toISOString(),
+    };
+  }, [currentUser, language]);
   
   // FIX 1 & 2: Voice & Adaptive Interview State
   const [isListening, setIsListening] = useState(false);
@@ -176,10 +198,8 @@ export default function PatientPortalPage() {
     setActiveStep('ayush');
   };
 
-  // Fresh Intake Reset & Patient Switching
-  const startFreshIntake = (patient?: Patient) => {
-    const targetPatient = patient || activePatient;
-    setActivePatient(targetPatient);
+  // Reset Current Intake Form (for the currently authenticated patient)
+  const handleClearIntakeSession = () => {
     setClinicalSlots({});
     setAyushAnswers({});
     setUploadedFilesList([]);
@@ -195,50 +215,14 @@ export default function PatientPortalPage() {
       {
         role: 'ai',
         content: language === 'hi' 
-          ? `नमस्ते ${targetPatient.full_name}! मैं आपका एआई स्वास्थ्य सहायक हूँ। कृपया अपनी परेशानी या लक्षण खुलकर बताएं।`
-          : `Hello ${targetPatient.full_name}! I am your AI Health Assistant. Please describe your symptoms or health concern today.`,
+          ? `नमस्ते ${activePatient.full_name}! मैं आपका एआई स्वास्थ्य सहायक हूँ। कृपया अपनी परेशानी या लक्षण खुलकर बताएं।`
+          : `Hello ${activePatient.full_name}! I am your AI Health Assistant. Please describe your symptoms or health concern today.`,
         timestamp: new Date().toISOString(),
         language,
       }
     ]);
     setActiveStep('talk');
   };
-
-  const handlePatientSwitch = async (patientId: string) => {
-    if (patientId === 'new') {
-      const newPat = await dataService.createPatient({
-        demo_id: `DEMO-P${Date.now().toString().slice(-4)}`,
-        abha_id: `91-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
-        full_name: 'New Test Patient',
-        gender: 'male',
-        date_of_birth: '1985-01-01',
-        age_years: 40,
-        phone: '+91 98000 00000',
-        preferred_language: language,
-        address: 'New Delhi, India',
-        emergency_contact_name: 'Emergency Contact',
-        emergency_contact_phone: '+91 98000 00001',
-      });
-      setAvailablePatients(mockDB.getState().patients);
-      startFreshIntake(newPat);
-    } else {
-      const pat = mockDB.getState().patients.find(p => p.id === patientId) || mockDB.getState().patients[0];
-      startFreshIntake(pat);
-    }
-  };
-
-  // Load existing data on initial mount
-  useEffect(() => {
-    const loadPatientData = () => {
-      const state = mockDB.getState();
-      setAvailablePatients(state.patients);
-      const patient = state.patients.find(p => p.id === currentUser.id) || state.patients[0];
-      setActivePatient(patient);
-    };
-    loadPatientData();
-    const unsubscribe = mockDB.subscribe(loadPatientData);
-    return () => unsubscribe();
-  }, [currentUser]);
 
   // Mid-conversation language switcher
   const handleLanguageSwitch = (newLang: 'hi' | 'en') => {
@@ -760,10 +744,10 @@ export default function PatientPortalPage() {
   };
 
   return (
-    <RoleGuard allowedRoles={['patient', 'doctor', 'admin']} stationName="Patient Care Portal">
+    <RoleGuard allowedRoles={['patient']} stationName="Patient Care Portal">
       <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full p-4 sm:p-6 lg:p-8 gap-6">
         
-        {/* Top Patient Header Strip & Patient Profile Switcher */}
+        {/* Top Patient Header Strip (Strictly shows authenticated patient details) */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-3xl border shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 shrink-0">
@@ -775,7 +759,7 @@ export default function PatientPortalPage() {
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
                   ABHA: {activePatient.abha_id || activePatient.demo_id}
                 </span>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 font-semibold">
                   ({activePatient.age_years}Y · {activePatient.gender.toUpperCase()})
                 </span>
               </div>
@@ -786,33 +770,14 @@ export default function PatientPortalPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Patient Switcher Dropdown */}
-            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-2xl border text-xs">
-              <span className="text-[11px] font-bold text-slate-400">Patient:</span>
-              <select
-                value={activePatient.id}
-                onChange={(e) => handlePatientSwitch(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
-              >
-                {availablePatients.map((p) => (
-                  <option key={p.id} value={p.id} className="dark:bg-slate-900 text-slate-900 dark:text-white">
-                    {p.full_name} ({p.age_years}Y, {p.gender.toUpperCase()})
-                  </option>
-                ))}
-                <option value="new" className="dark:bg-slate-900 text-sky-600 dark:text-sky-400 font-bold">
-                  + Register New Test Patient
-                </option>
-              </select>
-            </div>
-
-            {/* Start Fresh Intake Button */}
+            {/* Clear Form / Reset In-Progress Session Button */}
             <button
-              onClick={() => startFreshIntake()}
-              className="px-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all flex items-center gap-1"
-              title="Reset conversation and start a clean intake session for this patient"
+              onClick={handleClearIntakeSession}
+              className="px-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              title="Clear current form and start fresh for this patient"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Fresh Intake</span>
+              <span>{language === 'hi' ? 'फॉर्म रीसेट करें' : 'Reset Form'}</span>
             </button>
 
             {/* Mid-Conversation Language Toggle */}

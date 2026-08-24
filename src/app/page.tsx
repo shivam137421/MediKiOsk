@@ -22,7 +22,6 @@ import { useAuth, DEMO_USERS } from '@/lib/auth';
 import { mockDB } from '@/lib/supabase/mock-db';
 
 export default function HomePage() {
-  const { switchRole } = useAuth();
   const [stats, setStats] = useState({
     totalEncounters: 3,
     emergencyCount: 1,
@@ -92,7 +91,6 @@ export default function HomePage() {
         {/* Option 1: Patient */}
         <Link
           href="/patient"
-          onClick={() => switchRole('patient')}
           className="group relative flex flex-col justify-between p-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/60 dark:hover:border-emerald-500/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
         >
           <div>
@@ -137,7 +135,6 @@ export default function HomePage() {
         {/* Option 2: Doctor */}
         <Link
           href="/doctor"
-          onClick={() => switchRole('doctor')}
           className="group relative flex flex-col justify-between p-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500/60 dark:hover:border-sky-500/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
         >
           <div>
@@ -182,7 +179,6 @@ export default function HomePage() {
         {/* Option 3: Admin */}
         <Link
           href="/admin"
-          onClick={() => switchRole('admin')}
           className="group relative flex flex-col justify-between p-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-700/60 dark:hover:border-slate-500/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
         >
           <div>

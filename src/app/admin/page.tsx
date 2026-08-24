@@ -71,10 +71,11 @@ export default function AdminDashboardPage() {
   // Step 2 Action: Admin Assigns Doctor
   const handleAssignDoctor = async () => {
     if (!selectedEncounterForAssignment) return;
+    const adminId = currentUser?.id || 'usr-adm-01';
     await dataService.assignDoctor(
       selectedEncounterForAssignment.id,
       selectedDoctorId,
-      currentUser.id,
+      adminId,
       assignmentNote || 'Assigned matching specialist by Admin.'
     );
     setSelectedEncounterForAssignment(null);
@@ -84,10 +85,11 @@ export default function AdminDashboardPage() {
 
   // Step 4 Action: Admin Confirms Appointment to Patient
   const handleConfirmAppointment = async (encounterId: string, proposedTime: string) => {
+    const adminId = currentUser?.id || 'usr-adm-01';
     await dataService.confirmAppointment(
       encounterId,
       proposedTime,
-      currentUser.id,
+      adminId,
       confirmLocation,
       'Confirmed by Hospital Operations Administrator.'
     );
@@ -129,7 +131,7 @@ export default function AdminDashboardPage() {
           <div className="flex items-center gap-2">
             <div className="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs">
               <span className="text-slate-400">Admin: </span>
-              <strong className="text-slate-800 dark:text-slate-200">{currentUser.name}</strong>
+              <strong className="text-slate-800 dark:text-slate-200">{currentUser?.name || 'Vikram Joshi'}</strong>
             </div>
           </div>
         </div>

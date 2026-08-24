@@ -86,12 +86,13 @@ export default function DoctorDashboardPage() {
   // Step 3 Action: Doctor Proposes Appointment Time & Sends to Admin
   const handleProposeAppointment = async () => {
     if (!selectedEncounter) return;
+    const docId = currentUser?.id || 'usr-doc-01';
     await dataService.proposeAppointment(
       selectedEncounter.id,
       proposedDate,
       appointmentMode,
       doctorNotes,
-      currentUser.id
+      docId
     );
     setProposedSuccessNotice(true);
     setTimeout(() => setProposedSuccessNotice(false), 4000);
@@ -101,24 +102,26 @@ export default function DoctorDashboardPage() {
   // Save Doctor Edit & Sign-off Consultation
   const handleSaveSummaryEdit = async () => {
     if (!aiSummary) return;
-    await dataService.updateDoctorSummary(aiSummary.id, currentUser.id, editedSummaryText, false);
+    const docId = currentUser?.id || 'usr-doc-01';
+    await dataService.updateDoctorSummary(aiSummary.id, docId, editedSummaryText, false);
     setIsEditingSummary(false);
     loadData();
   };
 
   const handleFinalSignoff = async () => {
     if (!aiSummary || !selectedEncounter) return;
-    await dataService.updateDoctorSummary(aiSummary.id, currentUser.id, editedSummaryText, true);
+    const docId = currentUser?.id || 'usr-doc-01';
+    await dataService.updateDoctorSummary(aiSummary.id, docId, editedSummaryText, true);
     await dataService.updateEncounter(selectedEncounter.id, {
       status: 'completed',
       consultation_completed_at: new Date().toISOString(),
-      assigned_doctor_id: currentUser.id,
+      assigned_doctor_id: docId,
     });
     loadData();
   };
 
   return (
-    <RoleGuard allowedRoles={['doctor', 'admin']} stationName="Physician Consultation Hub">
+    <RoleGuard allowedRoles={['doctor']} stationName="Physician Consultation Hub">
       <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8 gap-6">
         
         {/* Top Doctor Header */}
@@ -131,7 +134,7 @@ export default function DoctorDashboardPage() {
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold text-slate-900 dark:text-white">Physician Consultation Hub</h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400">
-                  {currentUser.specialty || 'Specialist'}
+                  {currentUser?.specialty || 'Specialist'}
                 </span>
               </div>
               <p className="text-xs text-slate-500">
@@ -143,7 +146,7 @@ export default function DoctorDashboardPage() {
           <div className="flex items-center gap-2">
             <div className="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs">
               <span className="text-slate-400">Doctor: </span>
-              <strong className="text-slate-800 dark:text-slate-200">{currentUser.name}</strong>
+              <strong className="text-slate-800 dark:text-slate-200">{currentUser?.name || 'Dr. Arvind Sen'}</strong>
             </div>
           </div>
         </div>
