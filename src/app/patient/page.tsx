@@ -380,31 +380,34 @@ export default function PatientPortalPage() {
 
       // 4. Speak response via Indian Accent TTS & Auto-progress if complete
       setIsSpeaking(true);
-      speechService.speak(nextQuestionText, language, () => {
-        setIsSpeaking(false);
-        if (isIntakeComplete) {
-          console.log('[Patient Portal] Intake complete, navigating to Step 2 (Ayurvedic Assessment)...');
-          setTimeout(() => {
-            setIsAutoAdvancing(false);
-            speechService.stopSpeaking();
-            setActiveStep('ayush');
-          }, 800);
-        }
-      });
 
-      // Safety fallback timer if TTS is blocked/muted
+      let hasNavigated = false;
+      const doStep2Navigation = () => {
+        if (hasNavigated) return;
+        hasNavigated = true;
+        console.log('[Patient Portal] Step 1 Intake complete -> Auto-navigating to Step 2 (Ayurvedic Assessment)...');
+        setIsAutoAdvancing(false);
+        speechService.stopSpeaking();
+        speechService.stopListening();
+        setActiveStep('ayush');
+      };
+
       if (isIntakeComplete) {
-        setTimeout(() => {
-          setIsAutoAdvancing(false);
-          speechService.stopSpeaking();
-          setActiveStep((prev) => {
-            if (prev === 'talk') {
-              console.log('[Patient Portal] Safety timeout auto-advancing to Step 2 (Ayurvedic Assessment)');
-              return 'ayush';
-            }
-            return prev;
-          });
-        }, 4000);
+        setIsAutoAdvancing(true);
+        console.log('[Patient Portal] Structured completion active. Scheduling auto-progression to Step 2.');
+
+        // Play speech and navigate upon completion
+        speechService.speak(nextQuestionText, language, () => {
+          setIsSpeaking(false);
+          setTimeout(doStep2Navigation, 400);
+        });
+
+        // Guaranteed fallback navigation within 3 seconds so screen ALWAYS transitions
+        setTimeout(doStep2Navigation, 3000);
+      } else {
+        speechService.speak(nextQuestionText, language, () => {
+          setIsSpeaking(false);
+        });
       }
     })();
   };

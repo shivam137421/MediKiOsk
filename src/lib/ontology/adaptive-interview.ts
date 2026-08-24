@@ -492,25 +492,91 @@ export class AdaptiveClinicalInterviewEngine {
   }
 
   public isClosingStatement(text: string): boolean {
-    if (!text) return false;
-    const lower = text.toLowerCase();
-    return (
-      (lower.includes('धन्यवाद') && (lower.includes('रिकॉर्ड') || lower.includes('चरण 2') || lower.includes('आयुर्वेद'))) ||
-      lower.includes('चरण 2') ||
-      lower.includes('आयुर्वेद एवं जीवनशैली') ||
-      lower.includes('step 2 for the ayurvedic') ||
-      lower.includes('thoroughly recorded. now proceeding to step 2') ||
-      lower.includes('intake complete')
-    );
+    if (!text || typeof text !== 'string') return false;
+    const lower = text.toLowerCase().trim();
+
+    // 1. Direct explicit keywords across English and Hindi
+    const explicitClosingPhrases = [
+      'step 2',
+      'चरण 2',
+      'चरण दो',
+      'आयुर्वेद',
+      'ayurvedic',
+      'assessment',
+      'thoroughly recorded',
+      'intake complete',
+      'intake is complete',
+      'proceeding to',
+      'proceed to',
+      'next step',
+      'अगले चरण',
+      'आगे बढ़ते हैं',
+      'आगे बढ़ते हैं',
+      'आगे की प्रक्रिया',
+      'आगे की जांच',
+      'दर्ज कर लिया',
+      'दर्ज कर लिए',
+      'दर्ज हो चुका',
+      'दर्ज हो चुके',
+      'नोट कर लिया',
+      'नोट कर लिए',
+      'तैयार कर लिया',
+      'रिकॉर्ड तैयार',
+      'रिकॉर्ड दर्ज',
+      'पर्याप्त जानकारी',
+      'symptoms have been recorded',
+      'symptoms are recorded',
+      'details have been noted',
+      'details have been recorded',
+      'information has been recorded',
+      'all details recorded',
+      'have been noted',
+      'have been recorded',
+      'ready for the doctor',
+      'ready for triage',
+    ];
+
+    for (const phrase of explicitClosingPhrases) {
+      if (lower.includes(phrase)) return true;
+    }
+
+    // 2. Hindi Closing Combinations (e.g. धन्यवाद + नोट/रिकॉर्ड/लक्षण/जानकारी/जांच/प्रक्रिया/समस्या)
+    if (
+      lower.includes('धन्यवाद') &&
+      (
+        lower.includes('नोट') ||
+        lower.includes('दर्ज') ||
+        lower.includes('रिकॉर्ड') ||
+        lower.includes('लक्षण') ||
+        lower.includes('जानकारी') ||
+        lower.includes('जांच') ||
+        lower.includes('प्रक्रिया') ||
+        lower.includes('समस्या') ||
+        lower.includes('आगे') ||
+        lower.includes('तैयार')
+      )
+    ) {
+      return true;
+    }
+
+    // 3. English Closing Combinations (e.g. thank you / understood + symptoms / details / recorded)
+    if (
+      (lower.includes('thank you') || lower.includes('thanks') || lower.includes('understood') || lower.includes('got it') || lower.includes('noted')) &&
+      (lower.includes('record') || lower.includes('noted') || lower.includes('symptom') || lower.includes('detail') || lower.includes('intake') || lower.includes('proceed') || lower.includes('history')) &&
+      !lower.endsWith('?')
+    ) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
-   * Evaluates if the clinical interview is truly complete across all 5 core pillars:
+   * Evaluates if the clinical interview is ready for Step 2:
    * 1. Chief Complaint & Location
    * 2. Onset & Duration
-   * 3. Character & Sensation
-   * 4. Severity Rating (1-10)
-   * 5. Follow-up Detail (radiation/associated symptoms) OR Past Medical History
+   * 3. Character & Sensation OR Severity Rating
+   * 4. Follow-up Detail (radiation/associated symptoms) OR Past Medical History
    */
   public isClinicalIntakeComplete(slots: ExtractedClinicalSlots, patientTurnCount?: number): boolean {
     const hasChiefComplaint = Boolean(slots.chiefComplaint && slots.chiefComplaint.trim().length > 0);
@@ -522,13 +588,19 @@ export class AdaptiveClinicalInterviewEngine {
       Boolean(slots.associatedSymptoms && slots.associatedSymptoms.length > 0);
     const hasHistoryOrMeds = Boolean(slots.pastHistory && slots.pastHistory.length > 0);
 
-    // Strict 5-Pillar Rule: Chief Complaint + Onset + Character + Severity + (Follow-up detail OR History)
-    if (hasChiefComplaint && hasOnsetAndDuration && hasCharacter && hasSeverity && (hasFollowUpDetail || hasHistoryOrMeds)) {
+    // Rule 1: Full core coverage: Chief Complaint + Onset + (Character OR Severity) + (Follow-up detail OR History)
+    if (hasChiefComplaint && hasOnsetAndDuration && (hasCharacter || hasSeverity) && (hasFollowUpDetail || hasHistoryOrMeds)) {
       return true;
     }
 
-    // Safety limit to prevent infinite loops: 6+ distinct patient turns with complaint + at least 2 core slots
-    if (patientTurnCount && patientTurnCount >= 6 && hasChiefComplaint && (hasOnsetAndDuration || hasCharacter || hasSeverity)) {
+    // Rule 2: 3+ patient turns with chief complaint and at least 2 other dimensions
+    const validSlotCount = [hasOnsetAndDuration, hasCharacter, hasSeverity, hasFollowUpDetail, hasHistoryOrMeds].filter(Boolean).length;
+    if (patientTurnCount && patientTurnCount >= 3 && hasChiefComplaint && validSlotCount >= 2) {
+      return true;
+    }
+
+    // Rule 3: Safety limit (4+ turns total with chief complaint to avoid interrogation fatigue)
+    if (patientTurnCount && patientTurnCount >= 4 && hasChiefComplaint) {
       return true;
     }
 

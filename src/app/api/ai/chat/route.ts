@@ -28,12 +28,14 @@ export async function POST(req: NextRequest) {
 नियम:
 - यदि मरीज पैर/घुटने/कमर के दर्द की बात करे, तो केवल पैर, जोड़ों, सूजन या चलने से संबंधित सवाल पूछें (सीने के दर्द का सवाल कभी न पूछें)।
 - यदि मरीज सीने के दर्द की बात करे, तभी दिल/छाती/पसीने से जुड़े सवाल पूछें।
-- उत्तर में केवल 1 संक्षिप्त, स्पष्ट प्रश्न पूछें। यदि मरीज की पूरी समस्या समझ आ चुकी हो, तो संक्षेप में पुष्टि करें कि रिकॉर्ड तैयार है और चरण 2 (आयुर्वेद परीक्षा) पर आगे बढ़ रहे हैं।`
+- उत्तर में केवल 1 संक्षिप्त, स्पष्ट प्रश्न पूछें।
+- जब मरीज के मुख्य लक्षण, शुरुआत, तीव्रता और इतिहास पर्याप्त रूप से समझ आ चुके हों, तो स्पष्ट क्लोजिंग संदेश दें कि विवरण दर्ज कर लिया गया है और चरण 2 (आयुर्वेद परीक्षा) पर आगे बढ़ रहे हैं।`
       : `You are the 'MediKiosk' AI Clinical Doctor at triage. Based on the patient's primary complaint, ask exactly ONE (1) relevant clinical follow-up question following the OLDCARTS framework.
 Rules:
 - If patient mentions leg/knee/joint pain, ask ONLY about leg/walking/swelling/stiffness (NEVER ask about chest/arm/heart unless patient mentions it).
 - If patient mentions chest pain, ask about cardiac symptoms.
-- Keep question to 1 focused, empathetic sentence. If enough information is gathered, conclude that the intake is recorded and moving to Step 2.`;
+- Keep question to 1 focused, empathetic sentence.
+- When sufficient clinical details (complaint, onset, severity, history) are gathered, provide a clear closing statement that the intake is recorded and proceeding to Step 2 for Ayurvedic assessment.`;
 
     let reply = '';
     let usedProvider = 'clinical-rules-engine';
@@ -67,7 +69,7 @@ Rules:
               messages: groqMessages as any,
               model,
               temperature: 0.3,
-              max_completion_tokens: 100,
+              max_completion_tokens: 120,
             });
 
             let text = completion.choices[0]?.message?.content?.trim() || '';
@@ -129,9 +131,10 @@ Rules:
     // --------------------------------------------------------------------------
     // 4. STRUCTURED COMPLETION SIGNAL EVALUATION
     // --------------------------------------------------------------------------
-    const isComplete =
+    const isComplete = Boolean(
       adaptiveInterviewEngine.isClinicalIntakeComplete(slots, patientMessages.length) ||
-      adaptiveInterviewEngine.isClosingStatement(reply);
+      adaptiveInterviewEngine.isClosingStatement(reply)
+    );
 
     // If complete and reply lacks explicit closing remark, append clear closing
     if (isComplete && !adaptiveInterviewEngine.isClosingStatement(reply)) {
