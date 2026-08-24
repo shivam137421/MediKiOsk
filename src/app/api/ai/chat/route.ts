@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 import { GoogleGenAI } from '@google/genai';
-import { adaptiveInterviewEngine } from '@/lib/ontology/adaptive-interview';
+import { adaptiveInterviewEngine, sanitizeAIResponse } from '@/lib/ontology/adaptive-interview';
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,18 +24,20 @@ export async function POST(req: NextRequest) {
     }
 
     const defaultSystemPrompt = isHi
-      ? `आप 'MediKiosk' अस्पताल के मुख्य एआई डॉक्टर हैं। मरीज के मुख्य लक्षण को समझकर OLDCARTS (शुरुआत, दर्द का प्रकार, तीव्रता 1-10, फैलाव, संबंधित लक्षण) के अनुसार केवल एक (1) प्रासंगिक सवाल पूछें।
+      ? `आप 'MediKiosk' अस्पताल के मुख्य एआई डॉक्टर हैं। मरीज के मुख्य लक्षण (जैसे बुखार, सीने में दर्द, घुटने का दर्द, सिरदर्द या पेट दर्द) को समझकर OLDCARTS (शुरुआत, दर्द/लक्षण का प्रकार, तीव्रता 1-10, संबंधित लक्षण, पिछली बीमारी या ली गई दवा) के अनुसार केवल एक (1) प्रासंगिक सवाल पूछें।
 नियम:
+- यदि मरीज बुखार की बात करे, तो बुखार की अवधि, ठंड/कंपकंपी, थर्मामीटर तापमान, खांसी/गला, और पेरासिटामोल या ली गई दवा से जुड़े सवाल पूछें।
 - यदि मरीज पैर/घुटने/कमर के दर्द की बात करे, तो केवल पैर, जोड़ों, सूजन या चलने से संबंधित सवाल पूछें (सीने के दर्द का सवाल कभी न पूछें)।
 - यदि मरीज सीने के दर्द की बात करे, तभी दिल/छाती/पसीने से जुड़े सवाल पूछें।
-- उत्तर में केवल 1 संक्षिप्त, स्पष्ट प्रश्न पूछें।
-- जब मरीज के मुख्य लक्षण, शुरुआत, तीव्रता और इतिहास पर्याप्त रूप से समझ आ चुके हों, तो स्पष्ट क्लोजिंग संदेश दें कि विवरण दर्ज कर लिया गया है और चरण 2 (आयुर्वेद परीक्षा) पर आगे बढ़ रहे हैं।`
-      : `You are the 'MediKiosk' AI Clinical Doctor at triage. Based on the patient's primary complaint, ask exactly ONE (1) relevant clinical follow-up question following the OLDCARTS framework.
+- उत्तर में केवल 1 संक्षिप्त, सीधा और सहानुभूतिपूर्ण प्रश्न पूछें। कोई आंतरिक सोच (thinking) या विश्लेषण न लिखें।
+- जब मरीज के लक्षण, अवधि, तीव्रता, संबंधित लक्षण और दवाइयां पूर्ण रूप से दर्ज हो जाएं, तभी स्पष्ट क्लोजिंग संदेश दें कि विवरण दर्ज कर लिया गया है और चरण 2 (आयुर्वेद परीक्षा) पर आगे बढ़ रहे हैं।`
+      : `You are the 'MediKiosk' AI Clinical Doctor at triage. Based on the patient's primary complaint (such as fever, chest pain, knee pain, headache, or abdominal pain), ask exactly ONE (1) relevant clinical follow-up question following the OLDCARTS framework (onset, character/chills, severity 1-10, associated symptoms, and medication/history).
 Rules:
+- If patient mentions fever, ask about duration, chills/shivering, temperature/severity, associated cough/sore throat, and whether any Paracetamol/medicine was taken.
 - If patient mentions leg/knee/joint pain, ask ONLY about leg/walking/swelling/stiffness (NEVER ask about chest/arm/heart unless patient mentions it).
 - If patient mentions chest pain, ask about cardiac symptoms.
-- Keep question to 1 focused, empathetic sentence.
-- When sufficient clinical details (complaint, onset, severity, history) are gathered, provide a clear closing statement that the intake is recorded and proceeding to Step 2 for Ayurvedic assessment.`;
+- Output ONLY the single clear, empathetic question for the patient. Do NOT output any internal reasoning or thinking blocks.
+- When all essential dimensions are fully gathered, provide a clear closing statement that the intake is recorded and proceeding to Step 2 for Ayurvedic assessment.`;
 
     let reply = '';
     let usedProvider = 'clinical-rules-engine';
@@ -46,11 +48,13 @@ Rules:
     if ((activeProvider === 'groq' || (!geminiKey && groqKey)) && groqKey.length > 5) {
       try {
         const groq = new Groq({ apiKey: groqKey });
+        // Standard high-speed chat models (avoid reasoning models that emit <think> tags)
         const candidateModels = [
           'llama-3.3-70b-versatile',
-          'groq/compound',
-          'openai/gpt-oss-120b',
-          'qwen/qwen3.6-27b',
+          'llama-3.1-8b-instant',
+          'gemma2-9b-it',
+          'llama3-70b-8192',
+          'llama3-8b-8192',
         ];
 
         const groqMessages = [
@@ -59,7 +63,7 @@ Rules:
             .filter((h: any) => h.role !== 'system')
             .map((h: any) => ({
               role: h.role === 'assistant' || h.role === 'ai' ? 'assistant' : 'user',
-              content: h.content || h.text || '',
+              content: sanitizeAIResponse(h.content || h.text || ''),
             })),
         ];
 
@@ -68,14 +72,14 @@ Rules:
             const completion = await groq.chat.completions.create({
               messages: groqMessages as any,
               model,
-              temperature: 0.3,
-              max_completion_tokens: 120,
+              temperature: 0.2,
+              max_completion_tokens: 150,
             });
 
-            let text = completion.choices[0]?.message?.content?.trim() || '';
-            text = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-            if (text) {
-              reply = text;
+            let rawText = completion.choices[0]?.message?.content?.trim() || '';
+            let cleaned = sanitizeAIResponse(rawText);
+            if (cleaned && cleaned.length > 0) {
+              reply = cleaned;
               usedProvider = `groq (${model})`;
               break;
             }
@@ -96,7 +100,7 @@ Rules:
         const ai = new GoogleGenAI({ apiKey: geminiKey });
         const contents = (history || []).map((h: any) => ({
           role: h.role === 'assistant' || h.role === 'ai' ? 'model' : 'user',
-          parts: [{ text: h.content || h.text || '' }],
+          parts: [{ text: sanitizeAIResponse(h.content || h.text || '') }],
         }));
 
         const result = await ai.models.generateContent({
@@ -104,14 +108,15 @@ Rules:
           contents,
           config: {
             systemInstruction: defaultSystemPrompt,
-            temperature: 0.3,
-            maxOutputTokens: 120,
+            temperature: 0.2,
+            maxOutputTokens: 150,
           },
         });
 
-        const text = result.text;
-        if (text && text.trim().length > 0) {
-          reply = text.trim();
+        const rawText = result.text;
+        const cleaned = sanitizeAIResponse(rawText || '');
+        if (cleaned && cleaned.length > 0) {
+          reply = cleaned;
           usedProvider = 'gemini-1.5-flash';
         }
       } catch (geminiError: any) {
@@ -124,7 +129,7 @@ Rules:
     // --------------------------------------------------------------------------
     if (!reply) {
       const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang);
-      reply = dynamicNext.questionText;
+      reply = sanitizeAIResponse(dynamicNext.questionText);
       usedProvider = 'clinical-rules-engine';
     }
 

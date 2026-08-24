@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 import { GoogleGenAI } from '@google/genai';
+import { sanitizeAIResponse } from '@/lib/ontology/adaptive-interview';
 
 export async function POST(req: NextRequest) {
   try {
@@ -48,48 +49,48 @@ ${ayushAnswers && Object.keys(ayushAnswers).length > 0 ? `
 - Vikriti (Current Dosha Imbalance / Symptoms): ${Array.isArray(ayushAnswers.vikritiSymptoms) ? ayushAnswers.vikritiSymptoms.join(', ') : (ayushAnswers.vikritiDosha || 'None reported')} ${ayushAnswers.vikritiNotes ? `("${ayushAnswers.vikritiNotes}")` : ''}
 - Agni (Digestive Fire): ${ayushAnswers.agniType || 'Unspecified'} ${ayushAnswers.agniNotes ? `("${ayushAnswers.agniNotes}")` : ''}
 - Koshtha (Bowel Habit): ${ayushAnswers.koshthaType || 'Unspecified'} ${ayushAnswers.koshthaNotes ? `("${ayushAnswers.koshthaNotes}")` : ''}
-- Mutra (Urinary Pattern): ${Array.isArray(ayushAnswers.mutraPattern) ? ayushAnswers.mutraPattern.join(', ') : 'Unspecified'}
-- Jihva (Tongue & Taste): ${ayushAnswers.jihvaStatus || 'Unspecified'}
-- Nidra & Manas (Sleep & Mental State): ${Array.isArray(ayushAnswers.sleepMind) ? ayushAnswers.sleepMind.join(', ') : 'Unspecified'}
-- Bala (Physical Stamina & Energy): ${ayushAnswers.balaEnergy || 'Unspecified'}
-- Ahara (Dietary Habits): ${Array.isArray(ayushAnswers.aharaHabits) ? ayushAnswers.aharaHabits.join(', ') : 'Unspecified'}
-- Vihara (Daily Lifestyle): ${Array.isArray(ayushAnswers.viharaHabits) ? ayushAnswers.viharaHabits.join(', ') : 'Unspecified'}
-- Dhatu & Srotas Affected: ${Array.isArray(ayushAnswers.dhatuAffected) ? ayushAnswers.dhatuAffected.join(', ') : 'Unspecified'}
-- Nidana & Triggers: ${Array.isArray(ayushAnswers.nidanaTriggers) ? ayushAnswers.nidanaTriggers.join(', ') : 'Unspecified'}
-` : '- Step 2 status: Patient did not fill out Ayurvedic questionnaire (Optional).'}
+- Mutra (Urinary Symptoms): ${Array.isArray(ayushAnswers.mutraPattern) ? ayushAnswers.mutraPattern.join(', ') : (ayushAnswers.mutraPattern || 'Unspecified')} ${ayushAnswers.mutraNotes ? `("${ayushAnswers.mutraNotes}")` : ''}
+- Jihva (Tongue Examination): ${ayushAnswers.jihvaStatus || 'Unspecified'} ${ayushAnswers.jihvaNotes ? `("${ayushAnswers.jihvaNotes}")` : ''}
+- Satva & Nidra (Sleep & Mind): ${Array.isArray(ayushAnswers.sleepMind) ? ayushAnswers.sleepMind.join(', ') : (ayushAnswers.sleepMind || 'Unspecified')} ${ayushAnswers.sleepNotes ? `("${ayushAnswers.sleepNotes}")` : ''}
+- Bala (Physical Stamina): ${ayushAnswers.balaEnergy || 'Unspecified'} ${ayushAnswers.balaNotes ? `("${ayushAnswers.balaNotes}")` : ''}
+- Ahara (Dietary Habits): ${Array.isArray(ayushAnswers.aharaHabits) ? ayushAnswers.aharaHabits.join(', ') : (ayushAnswers.aharaHabits || 'Unspecified')} ${ayushAnswers.aharaNotes ? `("${ayushAnswers.aharaNotes}")` : ''}
+- Vihara (Lifestyle & Routine): ${Array.isArray(ayushAnswers.viharaHabits) ? ayushAnswers.viharaHabits.join(', ') : (ayushAnswers.viharaHabits || 'Unspecified')} ${ayushAnswers.viharaNotes ? `("${ayushAnswers.viharaNotes}")` : ''}
+- Dhatu Affected: ${Array.isArray(ayushAnswers.dhatuAffected) ? ayushAnswers.dhatuAffected.join(', ') : (ayushAnswers.dhatuAffected || 'Unspecified')} ${ayushAnswers.dhatuNotes ? `("${ayushAnswers.dhatuNotes}")` : ''}
+- Nidana (Triggers & Aggravating Factors): ${Array.isArray(ayushAnswers.nidanaTriggers) ? ayushAnswers.nidanaTriggers.join(', ') : (ayushAnswers.nidanaTriggers || 'Unspecified')} ${ayushAnswers.nidanaNotes ? `("${ayushAnswers.nidanaNotes}")` : ''}
+` : '- Ayurvedic Assessment: Unselected / Not completed for this encounter.'}
 
-STEP 3 — UPLOADED MEDICAL DOCUMENTS & EXTRACTED OCR ENTITIES:
-${uploadedDocs && uploadedDocs.length > 0 ? uploadedDocs.map((doc: any, i: number) => `
-[Document ${i + 1}]: ${doc.fileName || doc.name} (${doc.documentType || doc.category})
-- OCR Text / Excerpt: ${doc.rawText || 'Text extracted from file'}
-- Extracted Diagnoses: ${doc.extractedEntities?.diagnoses?.join(', ') || 'None found'}
-- Extracted Medications: ${doc.extractedEntities?.medications?.map((m: any) => `${m.drugName || m.name} ${m.strength || ''} (${m.frequency || ''})`).join('; ') || 'None found'}
-- Extracted Lab Results: ${doc.extractedEntities?.labResults?.map((l: any) => `${l.testName}: ${l.resultValue} ${l.unit} ${l.isAbnormal ? '(ABNORMAL)' : '(Normal)'}`).join('; ') || 'None found'}
-`).join('\n') : '- No previous medical documents were uploaded by the patient in this session.'}
+STEP 3 — UPLOADED MEDICAL DOCUMENTS & EXTRACTED OCR:
+${uploadedDocs && uploadedDocs.length > 0 ? (uploadedDocs as any[]).map((d: any, idx: number) => `
+[Document ${idx + 1}] File: ${d.fileName || d.file_name} (${d.documentType || d.document_category || 'Medical Report'})
+- OCR Confidence: ${Math.round((d.confidenceScore || d.ocr_confidence || 0.9) * 100)}%
+- Extracted Entities: ${JSON.stringify(d.extractedEntities || d.extracted_entities || {})}
+- Raw OCR Text:
+"""
+${(d.rawText || d.extracted_text || '').slice(0, 1000)}
+"""
+`).join('\n') : '- No prior medical documents uploaded.'}
 
-TRIAGE & SAFETY SENTINEL:
-- Triage Priority: ${redFlagResult?.priority || 'ROUTINE'} (${redFlagResult?.hasRedFlag ? 'EMERGENCY FAST-TRACK' : 'STANDARD CARE'})
-- Triggered Red Flags: ${redFlagResult?.triggerSymptoms?.join(', ') || 'No emergency red flags triggered'}
-- Clinical Rationale: ${redFlagResult?.rationale || 'Stable vital risk profile'}
-- Recommended Specialty: ${recommendedSpecialty || 'General Medicine'}
+STEP 4 — CLINICAL TRIAGE FLAGS & SPECIALTY DIRECTIVE:
+- Emergency Priority: ${redFlagResult?.hasRedFlag || encounter?.is_emergency ? 'CRITICAL EMERGENCY' : 'STANDARD / ROUTINE'}
+- Sentinel Red Flag Alert: ${redFlagResult?.rationale || encounter?.emergency_rationale || 'None triggered'}
+- Target OPD Specialty: ${recommendedSpecialty || encounter?.recommended_specialty || 'General Medicine'}
 `;
 
-    const systemPrompt = `You are the Lead Clinical AI Scribe and Triage Physician at 'MediKiosk' Hospital.
-Your task is to synthesize the patient's complete intake data (Step 1 Interview, Step 2 Ayurvedic Assessment, Step 3 Document Extractions, and Triage Evaluation) into a highly cohesive, advanced clinical summary.
+    const systemPrompt = `You are the Lead Clinical Synthesizer & Medical Documentation AI at MediKiosk.
+Your responsibility is to synthesize a structured, professional, HIPAA/NDHM-compliant Clinical SOAP & Ayush Intake Summary from the gathered encounter data.
 
-CRITICAL MEDICAL & SAFETY RULES:
-1. STRICT GROUNDING: NEVER invent, assume, or fabricate any medical facts, past diagnoses, medications, allergies, or lab results that are NOT explicitly present in the patient's data. If the patient has no medications or no uploaded documents, explicitly state "None reported" or "No prior diagnostic documents uploaded".
-2. COHESIVE SYNTHESIS: Connect related findings across the interview, Ayurvedic assessment, and uploaded documents into one integrated clinical narrative rather than disconnected bullet points. For example, if a document mentions a medication and the interview mentions related symptoms, tie them together. If Ayurvedic Prakriti/Vikriti or Agni relates to the primary symptom, highlight the holistic correlation.
-3. MANDATORY DISCLAIMER: The output must begin with "### **AI-generated draft — physician verification required.**".
-4. STRUCTURE: Provide the summary in clean Markdown with the following clear sections:
-   - Header with Patient Demographics, Triage Acuity, and Recommended Specialty
-   - 1. Chief Complaint & History of Present Illness (HPI Narrative)
-   - 2. Past Medical, Surgical & Chronic Disease History (PMH/PSH)
-   - 3. Current Medications & Source Attribution (Patient Stated vs Document OCR)
-   - 4. Allergies & Drug Sensitivities
-   - 5. Laboratory & Diagnostic Extractions (from Uploaded Documents)
-   - 6. Ayurvedic Clinical Assessment (Trividha / Ashtavidha Pariksha & Prakriti-Vikriti Analysis)
-   - 7. Specialty Triage & Clinical Safety Sentinel`;
+CRITICAL CLINICAL INTEGRITY RULES:
+1. STRICT TRUTHFULNESS & GROUNDING: Include ONLY the patient's actual reported symptoms, uploaded OCR documents, and Ayush questionnaire responses. NEVER invent or hallucinate cardiac medications (like Atorvastatin/Telmisartan) or cardiac complaints for an orthopedic/knee or gastric patient.
+2. CONCISE & STRUCTURED FORMAT: Generate clean, formatted Markdown using standard clinical headings:
+   - ## CLINICAL TRIAGE & PATIENT IDENTIFICATION
+   - ## CHIEF COMPLAINT (CC) & HISTORY OF PRESENT ILLNESS (HPI)
+   - ## REVIEW OF SYSTEMS & ASSOCIATED FINDINGS
+   - ## AYUSH & CONSTITUTIONAL EVALUATION (Prakriti, Vikriti, Agni, Dhatu)
+   - ## PAST MEDICAL HISTORY & CURRENT MEDICATIONS (Attributed to Patient Stated vs Document OCR)
+   - ## DIAGNOSTIC OCR & LABORATORY FINDINGS
+   - ## CLINICAL IMPRESSION & DIFFERENTIAL CONSIDERATIONS
+   - ## RECOMMENDED TRIAGE DISPOSITION & ACTION PLAN
+3. TONE: Objective, clinical, and precise.`;
 
     let generatedMarkdown = '';
     let usedModel = 'deterministic-fallback';
@@ -108,10 +109,10 @@ CRITICAL MEDICAL & SAFETY RULES:
           max_completion_tokens: 1200,
         });
 
-        let text = completion.choices[0]?.message?.content?.trim() || '';
-        text = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-        if (text && text.length > 50) {
-          generatedMarkdown = text;
+        let rawText = completion.choices[0]?.message?.content?.trim() || '';
+        let cleaned = sanitizeAIResponse(rawText);
+        if (cleaned && cleaned.length > 50) {
+          generatedMarkdown = cleaned;
           usedModel = 'groq (llama-3.3-70b-versatile)';
         }
       } catch (err: any) {
@@ -133,9 +134,10 @@ CRITICAL MEDICAL & SAFETY RULES:
             maxOutputTokens: 1200,
           }
         });
-        const text = result.text?.trim() || '';
-        if (text && text.length > 50) {
-          generatedMarkdown = text;
+        const rawText = result.text?.trim() || '';
+        const cleaned = sanitizeAIResponse(rawText);
+        if (cleaned && cleaned.length > 50) {
+          generatedMarkdown = cleaned;
           usedModel = 'gemini-1.5-flash';
         }
       } catch (geminiErr: any) {

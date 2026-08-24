@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { adaptiveInterviewEngine, ExtractedClinicalSlots } from '@/lib/ontology/adaptive-interview';
+import { adaptiveInterviewEngine, sanitizeAIResponse, ExtractedClinicalSlots } from '@/lib/ontology/adaptive-interview';
 
 export interface AIChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -58,16 +58,8 @@ export class GeminiAIProvider {
     }
 
     const defaultSystemPrompt = isHi
-      ? `आप 'MediKiosk' अस्पताल के मुख्य एआई डॉक्टर हैं। मरीज के मुख्य लक्षण को समझकर OLDCARTS (शुरुआत, दर्द का प्रकार, तीव्रता 1-10, फैलाव, संबंधित लक्षण) के अनुसार केवल एक (1) प्रासंगिक सवाल पूछें।
-नियम:
-- यदि मरीज पैर/घुटने/कमर के दर्द की बात करे, तो केवल पैर, जोड़ों, सूजन या चलने से संबंधित सवाल पूछें (सीने के दर्द का सवाल कभी न पूछें)।
-- यदि मरीज सीने के दर्द की बात करे, तभी दिल/छाती/पसीने से जुड़े सवाल पूछें।
-- उत्तर में केवल 1 संक्षिप्त प्रश्न पूछें।`
-      : `You are the 'MediKiosk' AI Clinical Doctor at triage. Based on the patient's primary complaint, ask exactly ONE (1) relevant clinical follow-up question.
-Rules:
-- If patient mentions leg/knee/joint pain, ask ONLY about leg/walking/swelling/stiffness (NEVER ask about chest/arm/heart unless patient mentions it).
-- If patient mentions chest pain, ask about cardiac symptoms.
-- Keep question to 1 focused sentence.`;
+      ? `आप 'MediKiosk' अस्पताल के मुख्य एआई डॉक्टर हैं। मरीज के मुख्य लक्षण को समझकर केवल 1 संक्षिप्त, सीधा और सहानुभूतिपूर्ण प्रश्न पूछें। कोई आंतरिक विचार या विश्लेषण न लिखें।`
+      : `You are the 'MediKiosk' AI Clinical Doctor at triage. Based on the patient's primary complaint, ask exactly ONE (1) relevant clinical follow-up question. Do NOT output internal reasoning.`;
 
     // 2. Try Calling Server API Route
     try {
@@ -79,12 +71,13 @@ Rules:
       if (res.ok) {
         const data = await res.json();
         if (data.reply) {
+          const cleanReply = sanitizeAIResponse(data.reply);
           const isComplete = Boolean(
             data.isComplete ||
             adaptiveInterviewEngine.isClinicalIntakeComplete(slots, patientMessages.length) ||
-            adaptiveInterviewEngine.isClosingStatement(data.reply)
+            adaptiveInterviewEngine.isClosingStatement(cleanReply)
           );
-          return { reply: data.reply, isComplete, slots: data.slots || slots };
+          return { reply: cleanReply, isComplete, slots: data.slots || slots };
         }
       }
     } catch (fetchErr) {
@@ -93,12 +86,13 @@ Rules:
 
     // 3. Guaranteed Dynamic Question from parsed clinical information gaps
     const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang);
+    const cleanDynamicText = sanitizeAIResponse(dynamicNext.questionText);
     const isComplete = Boolean(
       dynamicNext.isReadyForStep2 ||
       adaptiveInterviewEngine.isClinicalIntakeComplete(slots, patientMessages.length)
     );
     return {
-      reply: dynamicNext.questionText,
+      reply: cleanDynamicText,
       isComplete,
       slots,
     };

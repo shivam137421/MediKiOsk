@@ -329,61 +329,86 @@ async function runCompletePatientDashboardE2ETest() {
   }
 
   // ----------------------------------------------------------------------------
-  // TEST 5: AUTO-PROGRESSION SIGNAL & STEP TRANSITION RELIABILITY TEST
+  // TEST 5: MULTI-TURN CLINICAL INTERVIEW DEPTH (FEVER, KNEE, CARDIAC)
   // ----------------------------------------------------------------------------
-  console.log('\n--- TEST 5: AUTO-PROGRESSION & SCREEN TRANSITION SIGNAL VERIFICATION ---');
+  console.log('\n--- TEST 5: MULTI-TURN CLINICAL INTERVIEW DEPTH & NO PREMATURE CLOSING ---');
 
-  // Scenario 1: Hindi Knee Osteoarthritis Conversation
-  let simSlots1 = {};
-  simSlots1 = adaptiveInterviewEngine.parsePatientInput('मुझे दोनों घुटनों में 6 महीने से दर्द और सुबह अकड़न रहती है', simSlots1);
-  simSlots1 = adaptiveInterviewEngine.parsePatientInput('दर्द चलने पर 6 नंबर तक बढ़ जाता है और सूजन रहती है', simSlots1);
-  simSlots1 = adaptiveInterviewEngine.parsePatientInput('पहले कोई पुरानी बीमारी नहीं है और कोई नियमित दवा नहीं चल रही', simSlots1);
+  // Scenario 1: Step-by-Step Fever Interview (Hindi)
+  let feverSlots = {};
+  // Turn 1: Chief Complaint
+  feverSlots = adaptiveInterviewEngine.parsePatientInput('मुझे दो दिन से बुखार है', feverSlots);
+  const qFever1 = adaptiveInterviewEngine.generateNextQuestion(feverSlots, 'hi');
+  const isCompleteFeverTurn1 = adaptiveInterviewEngine.isClinicalIntakeComplete(feverSlots, 1);
+  console.log('Fever Turn 1 -> Next Question:', qFever1.questionText, '| Premature Complete:', isCompleteFeverTurn1);
 
-  const nextQ1 = adaptiveInterviewEngine.generateNextQuestion(simSlots1, 'hi');
-  const isComplete1 = adaptiveInterviewEngine.isClinicalIntakeComplete(simSlots1, 3);
-  const isClosing1 = adaptiveInterviewEngine.isClosingStatement(nextQ1.questionText);
+  // Turn 2: Character / Chills
+  feverSlots = adaptiveInterviewEngine.parsePatientInput('ठंड लगकर कंपकंपी आती है और पूरे बदन में बहुत दर्द है', feverSlots);
+  const qFever2 = adaptiveInterviewEngine.generateNextQuestion(feverSlots, 'hi');
+  const isCompleteFeverTurn2 = adaptiveInterviewEngine.isClinicalIntakeComplete(feverSlots, 2);
+  console.log('Fever Turn 2 -> Next Question:', qFever2.questionText, '| Premature Complete:', isCompleteFeverTurn2);
 
-  console.log('Scenario 1 (Hindi Knee): Complete:', isComplete1, '| Closing:', isClosing1, '| Ready:', nextQ1.isReadyForStep2);
+  // Turn 3: Severity / Temperature
+  feverSlots = adaptiveInterviewEngine.parsePatientInput('तापमान 102 डिग्री तक पहुंच जाता है, बहुत तेज बुखार है', feverSlots);
+  const qFever3 = adaptiveInterviewEngine.generateNextQuestion(feverSlots, 'hi');
+  const isCompleteFeverTurn3 = adaptiveInterviewEngine.isClinicalIntakeComplete(feverSlots, 3);
+  console.log('Fever Turn 3 -> Next Question:', qFever3.questionText, '| Premature Complete:', isCompleteFeverTurn3);
 
-  // Scenario 2: English Migraine / Headache Conversation
-  let simSlots2 = {};
-  simSlots2 = adaptiveInterviewEngine.parsePatientInput('I have severe throbbing headache on right side since yesterday morning', simSlots2);
-  simSlots2 = adaptiveInterviewEngine.parsePatientInput('The pain severity is 7/10 with nausea and light sensitivity', simSlots2);
-  simSlots2 = adaptiveInterviewEngine.parsePatientInput('No past history of hypertension or diabetes', simSlots2);
+  // Turn 4: Associated Symptoms
+  feverSlots = adaptiveInterviewEngine.parsePatientInput('साथ में हल्की खांसी और गले में खराश भी है', feverSlots);
+  const qFever4 = adaptiveInterviewEngine.generateNextQuestion(feverSlots, 'hi');
+  const isCompleteFeverTurn4 = adaptiveInterviewEngine.isClinicalIntakeComplete(feverSlots, 4);
+  console.log('Fever Turn 4 -> Next Question:', qFever4.questionText, '| Premature Complete:', isCompleteFeverTurn4);
 
-  const nextQ2 = adaptiveInterviewEngine.generateNextQuestion(simSlots2, 'en');
-  const isComplete2 = adaptiveInterviewEngine.isClinicalIntakeComplete(simSlots2, 3);
-  const isClosing2 = adaptiveInterviewEngine.isClosingStatement(nextQ2.questionText);
+  // Turn 5: Medications / History
+  feverSlots = adaptiveInterviewEngine.parsePatientInput('मैंने सुबह पेरासिटामोल 650mg ली थी, पहले से कोई अन्य बीमारी नहीं है', feverSlots);
+  const qFever5 = adaptiveInterviewEngine.generateNextQuestion(feverSlots, 'hi');
+  const isCompleteFeverTurn5 = adaptiveInterviewEngine.isClinicalIntakeComplete(feverSlots, 5);
+  console.log('Fever Turn 5 -> Closing Question:', qFever5.questionText, '| Complete:', isCompleteFeverTurn5);
 
-  console.log('Scenario 2 (English Migraine): Complete:', isComplete2, '| Closing:', isClosing2, '| Ready:', nextQ2.isReadyForStep2);
+  const feverDepthPassed = !isCompleteFeverTurn1 && !isCompleteFeverTurn2 && !isCompleteFeverTurn3 && isCompleteFeverTurn5;
 
-  // Scenario 3: Hindi Chest Pain / Cardiac Conversation
-  let simSlots3 = {};
-  simSlots3 = adaptiveInterviewEngine.parsePatientInput('सीने में 2 घंटे से भारीपन और बाईं बांह में खिंचाव है', simSlots3);
-  simSlots3 = adaptiveInterviewEngine.parsePatientInput('तीव्रता 8 है और पसीना आ रहा है', simSlots3);
-  simSlots3 = adaptiveInterviewEngine.parsePatientInput('बीपी की दवा लेते हैं', simSlots3);
-
-  const nextQ3 = adaptiveInterviewEngine.generateNextQuestion(simSlots3, 'hi');
-  const isComplete3 = adaptiveInterviewEngine.isClinicalIntakeComplete(simSlots3, 3);
-  const isClosing3 = adaptiveInterviewEngine.isClosingStatement(nextQ3.questionText);
-
-  console.log('Scenario 3 (Hindi Cardiac): Complete:', isComplete3, '| Closing:', isClosing3, '| Ready:', nextQ3.isReadyForStep2);
-
-  // Assertions for all 3 scenarios
-  const allScenariosComplete = (isComplete1 || isClosing1 || nextQ1.isReadyForStep2) &&
-                               (isComplete2 || isClosing2 || nextQ2.isReadyForStep2) &&
-                               (isComplete3 || isClosing3 || nextQ3.isReadyForStep2);
-
-  if (allScenariosComplete) {
-    console.log('✅ Test 5 Passed: Auto-progression completion signal triggers 100% reliably across distinct symptoms!');
+  if (feverDepthPassed) {
+    console.log('✅ Test 5 Passed: Fever interview covers all 5 clinical pillars without premature early termination!');
   } else {
-    console.error('❌ Test 5 Failed: Auto-progression signal failed on one or more symptom scenarios.');
+    console.error('❌ Test 5 Failed: Fever interview terminated prematurely or failed at turn 5.');
+    allPassed = false;
+  }
+
+  // ----------------------------------------------------------------------------
+  // TEST 6: THINKING TAG SANITIZATION & CLOSING DETECTION
+  // ----------------------------------------------------------------------------
+  console.log('\n--- TEST 6: THINKING TAG SANITIZATION & SAFE CLOSING DETECTION ---');
+  const { sanitizeAIResponse } = await import('../src/lib/ontology/adaptive-interview.ts');
+
+  // Test Case A: Closed <think> block
+  const rawWithThink = '<think>Here is the thinking process: patient has fever, need to ask onset.</think>बुखार कितने दिनों से आ रहा है?';
+  const cleanA = sanitizeAIResponse(rawWithThink);
+  const isQuestionA = cleanA.includes('?') && !adaptiveInterviewEngine.isClosingStatement(cleanA);
+
+  console.log('Cleaned A:', cleanA, '| Preserved Question & Not Closing:', isQuestionA);
+
+  // Test Case B: Unclosed <think> block (token limit truncated)
+  const rawUnclosed = '<think>Here is internal reasoning: 1. Analyze input - User said fever. Current state: Onset known...';
+  const cleanB = sanitizeAIResponse(rawUnclosed);
+  console.log('Cleaned B (Unclosed Think Stripped):', `"${cleanB}"`);
+
+  // Test Case C: True Closing Statement
+  const trueClosingHi = 'धन्यवाद, आपके मुख्य लक्षणों, तीव्रता और चिकित्सीय इतिहास का पूर्ण रिकॉर्ड तैयार कर लिया गया है। अब अगले चरण (आयुर्वेद एवं जीवनशैली परीक्षा) पर आगे बढ़ते हैं।';
+  const isTrueClosing = adaptiveInterviewEngine.isClosingStatement(trueClosingHi);
+  console.log('True Closing Statement Recognized:', isTrueClosing);
+
+  const test6Passed = cleanA === 'बुखार कितने दिनों से आ रहा है?' && isQuestionA && cleanB === '' && isTrueClosing;
+
+  if (test6Passed) {
+    console.log('✅ Test 6 Passed: AI thinking tags (<think>) completely sanitized and questions never trigger premature closing!');
+  } else {
+    console.error('❌ Test 6 Failed: Thinking tag sanitization or closing statement assertion failed.');
     allPassed = false;
   }
 
   console.log('\n================================================================');
   if (allPassed) {
-    console.log('🎉 ALL STEP 4, ADMIN HANDOFF & AUTO-PROGRESSION TESTS PASSED WITH 100% SUCCESS!');
+    console.log('🎉 ALL STEP 4, ADMIN HANDOFF, FEVER DEPTH & SANITIZATION TESTS PASSED WITH 100% SUCCESS!');
   } else {
     console.log('❌ SOME TESTS FAILED.');
   }

@@ -169,29 +169,42 @@ export class AdaptiveClinicalInterviewEngine {
         text.includes('aithan') || text.includes('ऐंठन') || text.includes('cramp') || text.includes('kheencho') ||
         text.includes('akdan') || text.includes('अकड़न') || text.includes('stiff') ||
         text.includes('bhari') || text.includes('भारी') || text.includes('dull') || text.includes('meetha dard') ||
-        text.includes('throbbing') || text.includes('spasm')
+        text.includes('throbbing') || text.includes('spasm') ||
+        text.includes('thand') || text.includes('ठंड') || text.includes('chill') || text.includes('shivering') ||
+        text.includes('kampan') || text.includes('कंपकंपी') || text.includes('badan dard') || text.includes('बदन दर्द') ||
+        text.includes('tootan') || text.includes('टूटना') || text.includes('body ache')
       )
     ) {
       slots.characterQuality = latestText;
     }
 
     // --------------------------------------------------------------------------
-    // 4. SEVERITY INTENSITY (Pain scale 1-10 or explicit score)
+    // 4. SEVERITY INTENSITY (Pain scale 1-10 or fever temperature)
     // --------------------------------------------------------------------------
-    const scaleMatch = text.match(/([1-9]|10)\s*(\/|out\s*of)\s*10/) || text.match(/(intensity|score|scale|level|severity|dard)\s*(is|:|=)?\s*([1-9]|10)\b/);
+    const scaleMatch = text.match(/([1-9]|10)\s*(\/|out\s*of)\s*10/) || text.match(/(intensity|score|scale|level|severity|dard|temperature|bukhar)\s*(is|:|=)?\s*([1-9]|10|\d{2,3})\b/);
     if (scaleMatch) {
-      const val = parseInt(scaleMatch[1] === 'intensity' || scaleMatch[1] === 'score' || scaleMatch[1] === 'scale' || scaleMatch[1] === 'dard' ? scaleMatch[3] : scaleMatch[1], 10);
-      if (!isNaN(val) && val >= 1 && val <= 10) {
-        slots.severityNumber = val;
+      const parsedVal = parseInt(scaleMatch[3] || scaleMatch[1], 10);
+      if (!isNaN(parsedVal)) {
+        if (parsedVal <= 10 && parsedVal >= 1) {
+          slots.severityNumber = parsedVal;
+        } else if (parsedVal >= 102) {
+          slots.severityNumber = 8; // High fever
+        } else if (parsedVal >= 100) {
+          slots.severityNumber = 6; // Moderate fever
+        } else if (parsedVal >= 99) {
+          slots.severityNumber = 4; // Mild fever
+        }
       }
     } else if (slots.severityNumber === undefined) {
-      if (text.includes('/10') || text.includes('out of 10') || text.includes('scale') || text.includes('rate')) {
+      if (text.includes('102') || text.includes('103') || text.includes('104') || text.includes('high fever') || text.includes('bahut tej bukhar') || text.includes('तेज बुखार') || text.includes('severe') || text.includes('unbearable')) {
+        slots.severityNumber = 8;
+      } else if (text.includes('100') || text.includes('101') || text.includes('moderate fever') || text.includes('madhyam')) {
+        slots.severityNumber = 6;
+      } else if (text.includes('99') || text.includes('halka bukhar') || text.includes('हल्का बुखार') || text.includes('mild') || text.includes('kam dard')) {
+        slots.severityNumber = 4;
+      } else if (text.includes('/10') || text.includes('out of 10') || text.includes('scale') || text.includes('rate')) {
         const num = text.match(/\b([1-9]|10)\b/);
         if (num) slots.severityNumber = parseInt(num[1], 10);
-      } else if (text.includes('severe') || text.includes('bahut tej') || text.includes('बहुत ज्यादा') || text.includes('unbearable') || text.includes('asahniya')) {
-        slots.severityNumber = 8;
-      } else if (text.includes('halka') || text.includes('mild') || text.includes('kam dard')) {
-        slots.severityNumber = 4;
       }
     }
 
@@ -229,6 +242,16 @@ export class AdaptiveClinicalInterviewEngine {
       slots.redFlagSymptoms?.push('Acute Dyspnea');
       slots.isRedFlagTriggered = true;
     }
+    if (text.includes('cough') || text.includes('khansi') || text.includes('खांसी') || text.includes('sardi') || text.includes('सर्दी') || text.includes('cold')) {
+      if (!slots.associatedSymptoms?.includes('Cough / Respiratory Symptoms')) slots.associatedSymptoms?.push('Cough / Respiratory Symptoms');
+    }
+    if (text.includes('vomit') || text.includes('ulti') || text.includes('उल्टी') || text.includes('nausea') || text.includes('ji michlana')) {
+      if (!slots.associatedSymptoms?.includes('Nausea / Vomiting')) slots.associatedSymptoms?.push('Nausea / Vomiting');
+    }
+    if (text.includes('gala') || text.includes('गले') || text.includes('throat') || text.includes('kharaash')) {
+      if (!slots.associatedSymptoms?.includes('Sore Throat / Pharyngitis')) slots.associatedSymptoms?.push('Sore Throat / Pharyngitis');
+    }
+
     // --------------------------------------------------------------------------
     // 6. PAST MEDICAL HISTORY & MEDICATIONS
     // --------------------------------------------------------------------------
@@ -239,6 +262,8 @@ export class AdaptiveClinicalInterviewEngine {
         text.includes('diabetes') || text.includes('uric') || text.includes('thyroid') ||
         text.includes('heart') || text.includes('purani bimari') || text.includes('पुरानी बीमारी') ||
         text.includes('dawa') || text.includes('dawai') || text.includes('medicine') || text.includes('tablet') ||
+        text.includes('paracetamol') || text.includes('pcm') || text.includes('dolo') || text.includes('crocin') ||
+        text.includes('calpol') || text.includes('combiflam') || text.includes('meftal') ||
         /\b(no|nahi|nhi|none|nil|kuch nahi|koi nahi|na|never)\b/.test(text) || text.includes('कोई बीमारी नहीं') ||
         text.includes('नहीं है') || text.includes('कोई दवा नहीं')
       )
@@ -382,6 +407,15 @@ export class AdaptiveClinicalInterviewEngine {
           targetSlot: 'characterQuality',
         };
       }
+      if (isFever) {
+        return {
+          questionText: isHi
+            ? 'बुखार के साथ क्या ठंड लगकर कंपकंपी (chills/shivering) आ रही है, तेज पसीना आ रहा है, या पूरे शरीर व मांसपेशियों में दर्द/टूटना महसूस हो रहा है?'
+            : 'Along with the fever, do you experience chills, shivering, profuse sweating, or severe body aches?',
+          isReadyForStep2: false,
+          targetSlot: 'characterQuality',
+        };
+      }
       return {
         questionText: isHi
           ? 'यह दर्द किस प्रकार का महसूस होता है? क्या यह तेज है, भारीपन जैसा है या चुभन जैसा?'
@@ -395,6 +429,15 @@ export class AdaptiveClinicalInterviewEngine {
     // GAP 3: SEVERITY SCALE (Only ask if UNKNOWN)
     // --------------------------------------------------------------------------
     if (slots.severityNumber === undefined) {
+      if (isFever) {
+        return {
+          questionText: isHi
+            ? 'बुखार कितना तेज रहता है (थर्मामीटर में कितना तापमान आया, या 1 से 10 के पैमाने पर कमजोरी व बुखार की तीव्रता कितनी है)?'
+            : 'How high is your fever (thermometer reading, or on a 1 to 10 scale how severe is the fever and fatigue)?',
+          isReadyForStep2: false,
+          targetSlot: 'severityNumber',
+        };
+      }
       return {
         questionText: isHi
           ? '1 से 10 के पैमाने पर आप इस दर्द/तकलीफ की तीव्रता को कितना अंक देंगे (जहाँ 1 हल्का और 10 असहनीय दर्द हो)?'
@@ -453,6 +496,15 @@ export class AdaptiveClinicalInterviewEngine {
           targetSlot: 'radiationLocation',
         };
       }
+      if (isFever) {
+        return {
+          questionText: isHi
+            ? 'क्या बुखार के साथ खांसी, जुकाम, गले में खराश, सिरदर्द, उल्टी या पेशाब में जलन जैसी कोई अन्य शिकायत भी है?'
+            : 'Along with fever, do you have cough, cold, sore throat, headache, vomiting, or burning during urination?',
+          isReadyForStep2: false,
+          targetSlot: 'radiationLocation',
+        };
+      }
       return {
         questionText: isHi
           ? 'क्या इस दर्द के साथ कोई अन्य लक्षण (जैसे सूजन, सुन्नपन या कमजोरी) भी महसूस हो रहे हैं?'
@@ -466,6 +518,15 @@ export class AdaptiveClinicalInterviewEngine {
     // GAP 5: PAST MEDICAL HISTORY & MEDICATIONS (Only ask if UNKNOWN)
     // --------------------------------------------------------------------------
     if (!slots.pastHistory || slots.pastHistory.length === 0) {
+      if (isFever) {
+        return {
+          questionText: isHi
+            ? 'क्या आपने बुखार के लिए पेरासिटामोल (Dolo/Crocin) या कोई अन्य दवा ली है, और क्या आपको पहले से बीपी, शुगर या कोई पुरानी बीमारी है?'
+            : 'Have you taken Paracetamol or any other medication for this fever, and do you have any past medical conditions like BP or Diabetes?',
+          isReadyForStep2: false,
+          targetSlot: 'pastHistory',
+        };
+      }
       return {
         questionText: isHi
           ? 'क्या आपको पहले से डायबिटीज (शुगर), हाई बीपी, यूरिक एसिड या थायरॉयड की कोई बीमारी है और क्या आप कोई नियमित दवा ले रहे हैं?'
@@ -487,22 +548,27 @@ export class AdaptiveClinicalInterviewEngine {
 
   public getClosingStatement(language: 'hi' | 'en'): string {
     return language === 'hi'
-      ? 'धन्यवाद, आपके मुख्य लक्षणों, दर्द की तीव्रता और चिकित्सीय इतिहास का पूर्ण रिकॉर्ड तैयार कर लिया गया है। अब अगले चरण (आयुर्वेद एवं जीवनशैली परीक्षा) पर आगे बढ़ते हैं।'
-      : 'Thank you, your clinical symptoms, pain severity, and medical history have been thoroughly recorded. Now proceeding to Step 2 for the Ayurvedic & Lifestyle Assessment.';
+      ? 'धन्यवाद, आपके मुख्य लक्षणों, तीव्रता और चिकित्सीय इतिहास का पूर्ण रिकॉर्ड तैयार कर लिया गया है। अब अगले चरण (आयुर्वेद एवं जीवनशैली परीक्षा) पर आगे बढ़ते हैं।'
+      : 'Thank you, your clinical symptoms, severity, and medical history have been thoroughly recorded. Now proceeding to Step 2 for the Ayurvedic & Lifestyle Assessment.';
   }
 
   public isClosingStatement(text: string): boolean {
     if (!text || typeof text !== 'string') return false;
-    const lower = text.toLowerCase().trim();
+    const clean = sanitizeAIResponse(text).toLowerCase().trim();
+    if (!clean) return false;
+
+    // A question that ends with ? is asking something from the patient, NOT closing!
+    if (clean.endsWith('?') || clean.endsWith('？')) {
+      return false;
+    }
 
     // 1. Direct explicit keywords across English and Hindi
     const explicitClosingPhrases = [
       'step 2',
       'चरण 2',
       'चरण दो',
-      'आयुर्वेद',
+      'आयुर्वेद एवं जीवनशैली',
       'ayurvedic',
-      'assessment',
       'thoroughly recorded',
       'intake complete',
       'intake is complete',
@@ -513,47 +579,40 @@ export class AdaptiveClinicalInterviewEngine {
       'आगे बढ़ते हैं',
       'आगे बढ़ते हैं',
       'आगे की प्रक्रिया',
-      'आगे की जांच',
       'दर्ज कर लिया',
       'दर्ज कर लिए',
       'दर्ज हो चुका',
       'दर्ज हो चुके',
       'नोट कर लिया',
       'नोट कर लिए',
-      'तैयार कर लिया',
+      'पूर्ण रिकॉर्ड तैयार',
       'रिकॉर्ड तैयार',
-      'रिकॉर्ड दर्ज',
-      'पर्याप्त जानकारी',
       'symptoms have been recorded',
       'symptoms are recorded',
-      'details have been noted',
       'details have been recorded',
       'information has been recorded',
       'all details recorded',
-      'have been noted',
-      'have been recorded',
       'ready for the doctor',
       'ready for triage',
     ];
 
     for (const phrase of explicitClosingPhrases) {
-      if (lower.includes(phrase)) return true;
+      if (clean.includes(phrase)) return true;
     }
 
     // 2. Hindi Closing Combinations (e.g. धन्यवाद + नोट/रिकॉर्ड/लक्षण/जानकारी/जांच/प्रक्रिया/समस्या)
     if (
-      lower.includes('धन्यवाद') &&
+      clean.includes('धन्यवाद') &&
       (
-        lower.includes('नोट') ||
-        lower.includes('दर्ज') ||
-        lower.includes('रिकॉर्ड') ||
-        lower.includes('लक्षण') ||
-        lower.includes('जानकारी') ||
-        lower.includes('जांच') ||
-        lower.includes('प्रक्रिया') ||
-        lower.includes('समस्या') ||
-        lower.includes('आगे') ||
-        lower.includes('तैयार')
+        clean.includes('नोट') ||
+        clean.includes('दर्ज') ||
+        clean.includes('रिकॉर्ड') ||
+        clean.includes('लक्षण') ||
+        clean.includes('जानकारी') ||
+        clean.includes('जांच') ||
+        clean.includes('प्रक्रिया') ||
+        clean.includes('आगे') ||
+        clean.includes('तैयार')
       )
     ) {
       return true;
@@ -561,9 +620,8 @@ export class AdaptiveClinicalInterviewEngine {
 
     // 3. English Closing Combinations (e.g. thank you / understood + symptoms / details / recorded)
     if (
-      (lower.includes('thank you') || lower.includes('thanks') || lower.includes('understood') || lower.includes('got it') || lower.includes('noted')) &&
-      (lower.includes('record') || lower.includes('noted') || lower.includes('symptom') || lower.includes('detail') || lower.includes('intake') || lower.includes('proceed') || lower.includes('history')) &&
-      !lower.endsWith('?')
+      (clean.includes('thank you') || clean.includes('thanks') || clean.includes('understood') || clean.includes('got it') || clean.includes('noted')) &&
+      (clean.includes('record') || clean.includes('noted') || clean.includes('symptom') || clean.includes('detail') || clean.includes('intake') || clean.includes('proceed') || clean.includes('history'))
     ) {
       return true;
     }
@@ -576,7 +634,8 @@ export class AdaptiveClinicalInterviewEngine {
    * 1. Chief Complaint & Location
    * 2. Onset & Duration
    * 3. Character & Sensation OR Severity Rating
-   * 4. Follow-up Detail (radiation/associated symptoms) OR Past Medical History
+   * 4. Follow-up Detail (radiation/associated symptoms)
+   * 5. Past Medical History / Medications taken
    */
   public isClinicalIntakeComplete(slots: ExtractedClinicalSlots, patientTurnCount?: number): boolean {
     const hasChiefComplaint = Boolean(slots.chiefComplaint && slots.chiefComplaint.trim().length > 0);
@@ -588,24 +647,46 @@ export class AdaptiveClinicalInterviewEngine {
       Boolean(slots.associatedSymptoms && slots.associatedSymptoms.length > 0);
     const hasHistoryOrMeds = Boolean(slots.pastHistory && slots.pastHistory.length > 0);
 
-    // Rule 1: Full core coverage: Chief Complaint + Onset + (Character OR Severity) + (Follow-up detail OR History)
-    if (hasChiefComplaint && hasOnsetAndDuration && (hasCharacter || hasSeverity) && (hasFollowUpDetail || hasHistoryOrMeds)) {
+    // Rule 1: Genuine 5-Pillar Coverage: Chief Complaint + Onset + (Character OR Severity) + Follow-up Detail + History/Meds
+    if (hasChiefComplaint && hasOnsetAndDuration && (hasCharacter || hasSeverity) && hasFollowUpDetail && hasHistoryOrMeds) {
       return true;
     }
 
-    // Rule 2: 3+ patient turns with chief complaint and at least 2 other dimensions
+    // Rule 2: Minimum 5 exchanges safety limit — only if chief complaint + onset + 2 other core dimensions are filled
     const validSlotCount = [hasOnsetAndDuration, hasCharacter, hasSeverity, hasFollowUpDetail, hasHistoryOrMeds].filter(Boolean).length;
-    if (patientTurnCount && patientTurnCount >= 3 && hasChiefComplaint && validSlotCount >= 2) {
-      return true;
-    }
-
-    // Rule 3: Safety limit (4+ turns total with chief complaint to avoid interrogation fatigue)
-    if (patientTurnCount && patientTurnCount >= 4 && hasChiefComplaint) {
+    if (patientTurnCount && patientTurnCount >= 5 && hasChiefComplaint && validSlotCount >= 3) {
       return true;
     }
 
     return false;
   }
+}
+
+/**
+ * Robustly sanitizes raw AI outputs to prevent reasoning leakage (<think> blocks, markdown meta-headers)
+ */
+export function sanitizeAIResponse(rawText: string): string {
+  if (!rawText || typeof rawText !== 'string') return '';
+
+  let text = rawText;
+
+  // 1. Strip completed <think>...</think> blocks
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+
+  // 2. Strip unclosed <think> blocks (e.g. <think> to end of text when tokens hit mid-thought)
+  text = text.replace(/<think>[\s\S]*$/gi, '');
+
+  // 3. Strip stray tags
+  text = text.replace(/<\/?think>/gi, '');
+
+  // 4. Strip internal meta-reasoning patterns
+  text = text.replace(/(?:Here'?s\s+(?:a\s+)?thinking\s+process|Thinking\s+Process|Reasoning\s+Process)[\s\S]*?(?=\n\n|[A-Z][a-z]+:|\d+\.|\?|$)/gi, '');
+  text = text.replace(/\*\*(?:Analyze\s+User\s+Input|Clinical\s+Analysis|Internal\s+Reasoning|Plan)\*\*[\s\S]*?(?=\n\n|[A-Z][a-z]+:|\?|$)/gi, '');
+
+  // 5. Clean markdown headers and extra symbols
+  text = text.replace(/[*_#`~|]/g, '').trim();
+
+  return text;
 }
 
 export const adaptiveInterviewEngine = new AdaptiveClinicalInterviewEngine();

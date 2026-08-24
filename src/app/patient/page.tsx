@@ -39,7 +39,7 @@ import { speechService } from '@/lib/providers/speech';
 import { ocrProvider, DocumentOCRResult } from '@/lib/providers/ocr';
 import { evaluateRedFlags } from '@/lib/rules/red-flags';
 import { generateStructuredClinicalSummary, generateAIClinicalSummary } from '@/lib/providers/summary';
-import { adaptiveInterviewEngine, ExtractedClinicalSlots, ClinicalConversationTurn } from '@/lib/ontology/adaptive-interview';
+import { adaptiveInterviewEngine, sanitizeAIResponse, ExtractedClinicalSlots, ClinicalConversationTurn } from '@/lib/ontology/adaptive-interview';
 import { AYURVEDIC_QUESTIONS, AyurvedicAssessmentAnswers } from '@/lib/ontology/ayurvedic-assessment';
 import { generateAndDownloadClinicalPDF } from '@/lib/pdf/pdf-generator';
 import { dataService } from '@/lib/supabase/service';
@@ -344,12 +344,14 @@ export default function PatientPortalPage() {
         console.warn('[Patient Portal] AI provider turn error:', e);
       }
 
-      if (!nextQuestionText) {
+      nextQuestionText = sanitizeAIResponse(nextQuestionText);
+
+      if (!nextQuestionText || nextQuestionText.length < 3) {
         const nextQ = adaptiveInterviewEngine.generateNextQuestion(
           mergedSlots,
           language
         );
-        nextQuestionText = nextQ.questionText;
+        nextQuestionText = sanitizeAIResponse(nextQ.questionText);
         if (nextQ.isReadyForStep2) isIntakeComplete = true;
       }
 
