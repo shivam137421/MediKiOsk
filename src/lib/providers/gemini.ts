@@ -50,16 +50,17 @@ export class GeminiAIProvider {
     const lang = options.language || 'hi';
     const isHi = lang === 'hi';
 
-    // 1. Parse clinical slots from history
+    // 1. Parse clinical slots from history with context-aware tracking
     let slots: ExtractedClinicalSlots = {};
     const patientMessages = history.filter(h => h.role === 'user');
     for (const msg of patientMessages) {
-      slots = adaptiveInterviewEngine.parsePatientInput(msg.content, slots);
+      const currentTarget = adaptiveInterviewEngine.generateNextQuestion(slots, lang).targetSlot;
+      slots = adaptiveInterviewEngine.parsePatientInput(msg.content, slots, currentTarget);
     }
 
     const defaultSystemPrompt = isHi
-      ? `आप 'MediKiosk' अस्पताल के मुख्य एआई डॉक्टर हैं। मरीज के मुख्य लक्षण को समझकर केवल 1 संक्षिप्त, सीधा और सहानुभूतिपूर्ण प्रश्न पूछें। कोई आंतरिक विचार या विश्लेषण न लिखें।`
-      : `You are the 'MediKiosk' AI Clinical Doctor at triage. Based on the patient's primary complaint, ask exactly ONE (1) relevant clinical follow-up question. Do NOT output internal reasoning.`;
+      ? `आप 'MediKiosk' अस्पताल के मुख्य एआई डॉक्टर हैं। मरीज के मुख्य लक्षण को समझकर केवल 1 संक्षिप्त, सीधा और सहानुभूतिपूर्ण प्रश्न पूछें। कोई आंतरिक विचार या विश्लेषण न लिखें। यदि आप कोई प्रश्न पूछ रहे हैं, तो केवल प्रश्न पूछें — प्रश्न और क्लोजिंग संदेश कभी न मिलाएं।`
+      : `You are the 'MediKiosk' AI Clinical Doctor at triage. Based on the patient's primary complaint, ask exactly ONE (1) relevant clinical follow-up question. Do NOT output internal reasoning. If asking a question, ONLY ask the question — NEVER combine a question with a closing/transition statement.`;
 
     // 2. Try Calling Server API Route
     try {
@@ -72,7 +73,8 @@ export class GeminiAIProvider {
         const data = await res.json();
         if (data.reply) {
           const cleanReply = sanitizeAIResponse(data.reply);
-          const isComplete = Boolean(
+          const isAsking = cleanReply.includes('?') || cleanReply.includes('？');
+          const isComplete = !isAsking && Boolean(
             data.isComplete ||
             adaptiveInterviewEngine.isClinicalIntakeComplete(slots, patientMessages.length) ||
             adaptiveInterviewEngine.isClosingStatement(cleanReply)
@@ -87,7 +89,8 @@ export class GeminiAIProvider {
     // 3. Guaranteed Dynamic Question from parsed clinical information gaps
     const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang);
     const cleanDynamicText = sanitizeAIResponse(dynamicNext.questionText);
-    const isComplete = Boolean(
+    const isAsking = cleanDynamicText.includes('?') || cleanDynamicText.includes('？');
+    const isComplete = !isAsking && Boolean(
       dynamicNext.isReadyForStep2 ||
       adaptiveInterviewEngine.isClinicalIntakeComplete(slots, patientMessages.length)
     );

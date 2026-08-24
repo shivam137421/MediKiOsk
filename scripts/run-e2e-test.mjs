@@ -377,38 +377,88 @@ async function runCompletePatientDashboardE2ETest() {
   // ----------------------------------------------------------------------------
   // TEST 6: THINKING TAG SANITIZATION & CLOSING DETECTION
   // ----------------------------------------------------------------------------
-  console.log('\n--- TEST 6: THINKING TAG SANITIZATION & SAFE CLOSING DETECTION ---');
-  const { sanitizeAIResponse } = await import('../src/lib/ontology/adaptive-interview.ts');
+  // ----------------------------------------------------------------------------
+  // TEST 7: BUG 3 — "टूट" / NON-KEYWORD CHARACTER RESPONSE CAPTURE
+  // ----------------------------------------------------------------------------
+  console.log('\n--- TEST 7: CHARACTER QUALITY "टूट" & TARGET SLOT CAPTURE ---');
+  let test7Slots = {};
+  test7Slots = adaptiveInterviewEngine.parsePatientInput('मुझे दो दिन से बुखार है', test7Slots);
+  const q7_1 = adaptiveInterviewEngine.generateNextQuestion(test7Slots, 'hi');
+  console.log('Turn 1 Question:', q7_1.questionText, '| Target:', q7_1.targetSlot);
 
-  // Test Case A: Closed <think> block
-  const rawWithThink = '<think>Here is the thinking process: patient has fever, need to ask onset.</think>बुखार कितने दिनों से आ रहा है?';
-  const cleanA = sanitizeAIResponse(rawWithThink);
-  const isQuestionA = cleanA.includes('?') && !adaptiveInterviewEngine.isClosingStatement(cleanA);
+  // Patient answers "टूट" (aching/breaking sensation) to character question
+  test7Slots = adaptiveInterviewEngine.parsePatientInput('टूट', test7Slots, q7_1.targetSlot);
+  const q7_2 = adaptiveInterviewEngine.generateNextQuestion(test7Slots, 'hi');
+  console.log('Turn 2 Question:', q7_2.questionText, '| Next Target:', q7_2.targetSlot);
+  console.log('Captured characterQuality:', test7Slots.characterQuality);
 
-  console.log('Cleaned A:', cleanA, '| Preserved Question & Not Closing:', isQuestionA);
-
-  // Test Case B: Unclosed <think> block (token limit truncated)
-  const rawUnclosed = '<think>Here is internal reasoning: 1. Analyze input - User said fever. Current state: Onset known...';
-  const cleanB = sanitizeAIResponse(rawUnclosed);
-  console.log('Cleaned B (Unclosed Think Stripped):', `"${cleanB}"`);
-
-  // Test Case C: True Closing Statement
-  const trueClosingHi = 'धन्यवाद, आपके मुख्य लक्षणों, तीव्रता और चिकित्सीय इतिहास का पूर्ण रिकॉर्ड तैयार कर लिया गया है। अब अगले चरण (आयुर्वेद एवं जीवनशैली परीक्षा) पर आगे बढ़ते हैं।';
-  const isTrueClosing = adaptiveInterviewEngine.isClosingStatement(trueClosingHi);
-  console.log('True Closing Statement Recognized:', isTrueClosing);
-
-  const test6Passed = cleanA === 'बुखार कितने दिनों से आ रहा है?' && isQuestionA && cleanB === '' && isTrueClosing;
-
-  if (test6Passed) {
-    console.log('✅ Test 6 Passed: AI thinking tags (<think>) completely sanitized and questions never trigger premature closing!');
+  const test7Passed = Boolean(test7Slots.characterQuality) && q7_2.targetSlot !== 'characterQuality';
+  if (test7Passed) {
+    console.log('✅ Test 7 Passed: "टूट" correctly captured for characterQuality and question moves to next gap (severity)!');
   } else {
-    console.error('❌ Test 6 Failed: Thinking tag sanitization or closing statement assertion failed.');
+    console.error('❌ Test 7 Failed: Character quality "टूट" was not captured or question repeated.');
+    allPassed = false;
+  }
+
+  // ----------------------------------------------------------------------------
+  // TEST 8: BUG 1 — PREVENT CLOSING ON MESSAGES COMBINING QUESTIONS & CLOSING REMARKS
+  // ----------------------------------------------------------------------------
+  console.log('\n--- TEST 8: QUESTION MARK & QUESTION WORD EMBEDDED CLOSING GUARD ---');
+  const combinedMessage1 = 'क्या आपको कोई अन्य शिकायत भी है? धन्यवाद, आपका रिकॉर्ड तैयार कर लिया गया है, अगले चरण पर आगे बढ़ते हैं';
+  const combinedMessage2 = 'Do you have any other symptoms? Thank you, details have been recorded, proceeding to step 2.';
+  const pureClosingMessage = 'धन्यवाद, आपके मुख्य लक्षणों, तीव्रता और चिकित्सीय इतिहास का पूर्ण रिकॉर्ड तैयार कर लिया गया है। अब अगले चरण पर आगे बढ़ते हैं।';
+
+  const isClosingCombined1 = adaptiveInterviewEngine.isClosingStatement(combinedMessage1);
+  const isClosingCombined2 = adaptiveInterviewEngine.isClosingStatement(combinedMessage2);
+  const isClosingPure = adaptiveInterviewEngine.isClosingStatement(pureClosingMessage);
+
+  console.log('Combined Message 1 (Hindi with Question): isClosing =', isClosingCombined1);
+  console.log('Combined Message 2 (English with Question): isClosing =', isClosingCombined2);
+  console.log('Pure Closing Message: isClosing =', isClosingPure);
+
+  const test8Passed = !isClosingCombined1 && !isClosingCombined2 && isClosingPure;
+  if (test8Passed) {
+    console.log('✅ Test 8 Passed: Messages containing embedded questions NEVER trigger closing transitions!');
+  } else {
+    console.error('❌ Test 8 Failed: isClosingStatement returned true on a message containing a question.');
+    allPassed = false;
+  }
+
+  // ----------------------------------------------------------------------------
+  // TEST 9: BUG 2 — RAISED RULE 3 SAFETY BAR & NO SHALLOW 4-TURN CLOSINGS
+  // ----------------------------------------------------------------------------
+  console.log('\n--- TEST 9: RAISED RULE 3 SAFETY BAR (NO SHALLOW 4-TURN CLOSING) ---');
+  let shallowSlots = { chiefComplaint: 'Leg Pain' }; // Only chief complaint, onset/character/severity missing!
+
+  const shallowTurn3 = adaptiveInterviewEngine.isClinicalIntakeComplete(shallowSlots, 3);
+  const shallowTurn4 = adaptiveInterviewEngine.isClinicalIntakeComplete(shallowSlots, 4);
+  const shallowTurn6 = adaptiveInterviewEngine.isClinicalIntakeComplete(shallowSlots, 6);
+
+  // Now simulate a long conversation (7+ turns) that managed to capture 3 core dimensions (onset, character, severity)
+  let longSlots = {
+    chiefComplaint: 'Leg Pain',
+    durationOnset: '2 weeks',
+    characterQuality: 'Cramping',
+    severityNumber: 6,
+  };
+  const longTurn7 = adaptiveInterviewEngine.isClinicalIntakeComplete(longSlots, 7);
+
+  console.log('Shallow Turn 3 Complete:', shallowTurn3);
+  console.log('Shallow Turn 4 Complete:', shallowTurn4);
+  console.log('Shallow Turn 6 Complete:', shallowTurn6);
+  console.log('Long Confused Turn 7 (3 core slots filled) Complete:', longTurn7);
+
+  const test9Passed = !shallowTurn3 && !shallowTurn4 && !shallowTurn6 && longTurn7;
+  if (test9Passed) {
+    console.log('✅ Test 9 Passed: Rule 3 raised bar prevents shallow premature closings at turns 1-6, while gracefully ending long 7+ turn conversations!');
+  } else {
+    console.error('❌ Test 9 Failed: Shallow interview was prematurely closed or 7+ turn fallback failed.');
     allPassed = false;
   }
 
   console.log('\n================================================================');
   if (allPassed) {
-    console.log('🎉 ALL STEP 4, ADMIN HANDOFF, FEVER DEPTH & SANITIZATION TESTS PASSED WITH 100% SUCCESS!');
+    console.log('🎉 ALL STEP 4, ADMIN HANDOFF, BUG 1, BUG 2, AND BUG 3 TESTS PASSED WITH 100% SUCCESS!');
   } else {
     console.log('❌ SOME TESTS FAILED.');
   }

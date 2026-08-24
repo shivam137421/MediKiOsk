@@ -309,8 +309,9 @@ export default function PatientPortalPage() {
     setInputText('');
     setLiveTranscript('');
 
-    // 2. Parse Clinical Entities across OLDCARTS
-    const updatedSlots = adaptiveInterviewEngine.parsePatientInput(messageText, clinicalSlots);
+    // 2. Parse Clinical Entities across OLDCARTS with context-aware target gap tracking
+    const currentTargetSlot = adaptiveInterviewEngine.generateNextQuestion(clinicalSlots, language).targetSlot;
+    const updatedSlots = adaptiveInterviewEngine.parsePatientInput(messageText, clinicalSlots, currentTargetSlot);
     setClinicalSlots(updatedSlots);
 
     if (updatedSlots.recommendedSpecialty) {
@@ -355,19 +356,22 @@ export default function PatientPortalPage() {
         if (nextQ.isReadyForStep2) isIntakeComplete = true;
       }
 
-      // Explicit multi-signal completion check
+      // Explicit structured completion check anchored on engine's gap assessment
       const patientTurnCount = newTurns.filter(t => t.role === 'patient').length;
-      if (
-        isIntakeComplete ||
-        adaptiveInterviewEngine.isClinicalIntakeComplete(mergedSlots, patientTurnCount) ||
-        adaptiveInterviewEngine.isClosingStatement(nextQuestionText)
-      ) {
+      const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(mergedSlots, language);
+      const isEngineComplete = adaptiveInterviewEngine.isClinicalIntakeComplete(mergedSlots, patientTurnCount);
+      const isReplyAskingQuestion = nextQuestionText.includes('?') || nextQuestionText.includes('？');
+
+      if (!isReplyAskingQuestion && (isEngineComplete || dynamicNext.isReadyForStep2)) {
         isIntakeComplete = true;
         setIsAutoAdvancing(true);
         // Ensure closing text is crisp if not already
         if (!adaptiveInterviewEngine.isClosingStatement(nextQuestionText)) {
           nextQuestionText = `${nextQuestionText} ${adaptiveInterviewEngine.getClosingStatement(language)}`;
         }
+      } else {
+        isIntakeComplete = false;
+        setIsAutoAdvancing(false);
       }
 
       const aiTurn: ClinicalConversationTurn = {

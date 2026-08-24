@@ -13,13 +13,14 @@ export async function POST(req: NextRequest) {
     const lang = (language === 'en' ? 'en' : 'hi') as 'hi' | 'en';
     const isHi = lang === 'hi';
 
-    // Parse the entire patient dialogue into clinical slots
+    // Parse the entire patient dialogue into clinical slots with context-aware gap tracking
     let slots = {};
     const patientMessages = (history || []).filter((h: any) => h.role === 'user' || h.role === 'patient');
     for (const msg of patientMessages) {
       const text = msg.content || msg.text || '';
       if (text) {
-        slots = adaptiveInterviewEngine.parsePatientInput(text, slots);
+        const currentTarget = adaptiveInterviewEngine.generateNextQuestion(slots, lang).targetSlot;
+        slots = adaptiveInterviewEngine.parsePatientInput(text, slots, currentTarget);
       }
     }
 
@@ -30,14 +31,16 @@ export async function POST(req: NextRequest) {
 - यदि मरीज पैर/घुटने/कमर के दर्द की बात करे, तो केवल पैर, जोड़ों, सूजन या चलने से संबंधित सवाल पूछें (सीने के दर्द का सवाल कभी न पूछें)।
 - यदि मरीज सीने के दर्द की बात करे, तभी दिल/छाती/पसीने से जुड़े सवाल पूछें।
 - उत्तर में केवल 1 संक्षिप्त, सीधा और सहानुभूतिपूर्ण प्रश्न पूछें। कोई आंतरिक सोच (thinking) या विश्लेषण न लिखें।
-- जब मरीज के लक्षण, अवधि, तीव्रता, संबंधित लक्षण और दवाइयां पूर्ण रूप से दर्ज हो जाएं, तभी स्पष्ट क्लोजिंग संदेश दें कि विवरण दर्ज कर लिया गया है और चरण 2 (आयुर्वेद परीक्षा) पर आगे बढ़ रहे हैं।`
+- अति महत्वपूर्ण नियम: यदि आप कोई सवाल पूछ रहे हैं, तो केवल सवाल पूछें — एक ही उत्तर में सवाल और क्लोजिंग/चरण 2 का संदेश कभी न मिलाएं।
+- जब मरीज के लक्षण, अवधि, तीव्रता, संबंधित लक्षण और दवाइयां पूर्ण रूप से दर्ज हो जाएं और आगे कोई सवाल न पूछना हो, तभी स्पष्ट क्लोजिंग संदेश दें कि विवरण दर्ज कर लिया गया है और चरण 2 (आयुर्वेद परीक्षा) पर आगे बढ़ रहे हैं।`
       : `You are the 'MediKiosk' AI Clinical Doctor at triage. Based on the patient's primary complaint (such as fever, chest pain, knee pain, headache, or abdominal pain), ask exactly ONE (1) relevant clinical follow-up question following the OLDCARTS framework (onset, character/chills, severity 1-10, associated symptoms, and medication/history).
 Rules:
 - If patient mentions fever, ask about duration, chills/shivering, temperature/severity, associated cough/sore throat, and whether any Paracetamol/medicine was taken.
 - If patient mentions leg/knee/joint pain, ask ONLY about leg/walking/swelling/stiffness (NEVER ask about chest/arm/heart unless patient mentions it).
 - If patient mentions chest pain, ask about cardiac symptoms.
 - Output ONLY the single clear, empathetic question for the patient. Do NOT output any internal reasoning or thinking blocks.
-- When all essential dimensions are fully gathered, provide a clear closing statement that the intake is recorded and proceeding to Step 2 for Ayurvedic assessment.`;
+- CRITICAL RULE: If you are asking a question, ONLY ask the question — NEVER combine a question with a closing/transition statement in the same message.
+- Only provide a closing statement on a turn where all essential details are gathered and you are NOT asking anything further.`;
 
     let reply = '';
     let usedProvider = 'clinical-rules-engine';
@@ -136,10 +139,14 @@ Rules:
     // --------------------------------------------------------------------------
     // 4. STRUCTURED COMPLETION SIGNAL EVALUATION
     // --------------------------------------------------------------------------
-    const isComplete = Boolean(
-      adaptiveInterviewEngine.isClinicalIntakeComplete(slots, patientMessages.length) ||
-      adaptiveInterviewEngine.isClosingStatement(reply)
-    );
+    const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang);
+    const isEngineComplete = adaptiveInterviewEngine.isClinicalIntakeComplete(slots, patientMessages.length);
+    const replyIsAskingQuestion = reply.includes('?') || reply.includes('？');
+
+    let isComplete = false;
+    if (!replyIsAskingQuestion && (isEngineComplete || dynamicNext.isReadyForStep2)) {
+      isComplete = true;
+    }
 
     // If complete and reply lacks explicit closing remark, append clear closing
     if (isComplete && !adaptiveInterviewEngine.isClosingStatement(reply)) {

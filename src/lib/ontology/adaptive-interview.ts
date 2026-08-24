@@ -22,9 +22,14 @@ export interface ExtractedClinicalSlots {
 }
 
 export class AdaptiveClinicalInterviewEngine {
+  /**
+   * Robust clinical slot parser combining expanded synonym dictionaries
+   * with context-aware targetSlot recognition to prevent repeat questions.
+   */
   public parsePatientInput(
     latestText: string,
-    existingSlots: ExtractedClinicalSlots
+    existingSlots: ExtractedClinicalSlots = {},
+    targetSlot?: string
   ): ExtractedClinicalSlots {
     const text = latestText.toLowerCase().trim();
     const slots: ExtractedClinicalSlots = {
@@ -34,11 +39,15 @@ export class AdaptiveClinicalInterviewEngine {
       redFlagSymptoms: [...(existingSlots.redFlagSymptoms || [])],
     };
 
+    // Determine what information gap was targeted if not explicitly passed
+    const effectiveTargetSlot = targetSlot || this.generateNextQuestion(existingSlots, 'hi').targetSlot;
+    const isSubstantive = text.length >= 2 && !/^(hi|hello|hey|namaste|नमस्ते|ok|okay|theek hai|ठीक है|achha|accha)$/i.test(text);
+
     // --------------------------------------------------------------------------
     // 1. ANATOMICAL REGION & CHIEF COMPLAINT
     // --------------------------------------------------------------------------
-    if (!slots.chiefComplaint || text.includes('pair') || text.includes('पैर') || text.includes('leg') || text.includes('chest') || text.includes('सीन') || text.includes('pet') || text.includes('पेट') || text.includes('head') || text.includes('सिर')) {
-      
+    if (!slots.chiefComplaint || text.includes('pair') || text.includes('पैर') || text.includes('leg') || text.includes('chest') || text.includes('सीन') || text.includes('pet') || text.includes('पेट') || text.includes('head') || text.includes('सिर') || text.includes('fever') || text.includes('bukhar') || text.includes('बुखार')) {
+
       // Leg / Lower Extremity
       if (
         text.includes('pair') ||
@@ -125,6 +134,8 @@ export class AdaptiveClinicalInterviewEngine {
         text.includes('bukhar') ||
         text.includes('बुखार') ||
         text.includes('temperature') ||
+        text.includes('tapman') ||
+        text.includes('तापमान') ||
         (text.includes('cold') && !text.includes('sweat')) ||
         text.includes('cough') ||
         text.includes('khansi')
@@ -132,7 +143,7 @@ export class AdaptiveClinicalInterviewEngine {
         slots.chiefComplaint = 'Febrile Illness / Pyrexia';
         slots.recommendedSpecialty = 'General Medicine';
       }
-      else if (!slots.chiefComplaint) {
+      else if (!slots.chiefComplaint && isSubstantive) {
         slots.chiefComplaint = latestText.slice(0, 60);
         slots.recommendedSpecialty = 'General Medicine';
       }
@@ -144,49 +155,56 @@ export class AdaptiveClinicalInterviewEngine {
     if (
       !slots.durationOnset &&
       (
-        text.includes('hour') || text.includes('ghante') || text.includes('घंटे') || text.includes('minute') ||
-        text.includes('day') || text.includes('din') || text.includes('दिन') || text.includes('kal') ||
-        text.includes('week') || text.includes('hafta') || text.includes('month') || text.includes('mahine') ||
-        text.includes('saal') || text.includes('year') || text.includes('november') || text.includes('december') ||
-        text.includes('january') || text.includes('february') || text.includes('march') || text.includes('subah') ||
-        text.includes('aaj') || text.includes('teer') || text.includes('chot') || text.includes('चोट') ||
-        text.includes('accident') || text.includes('gir') || text.includes('lagi') || text.includes('shuru') ||
-        text.includes('since') || text.includes('started') || /\b(se|ago)\b/.test(text) || text.includes('से')
+        text.includes('hour') || text.includes('ghante') || text.includes('घंटे') || text.includes('minute') || text.includes('min') ||
+        text.includes('day') || text.includes('din') || text.includes('दिन') || text.includes('kal') || text.includes('कल') ||
+        text.includes('parso') || text.includes('परसों') || text.includes('week') || text.includes('hafta') || text.includes('हफ्ता') ||
+        text.includes('hafte') || text.includes('हफ्ते') || text.includes('month') || text.includes('mahine') || text.includes('महीने') ||
+        text.includes('saal') || text.includes('year') || text.includes('वर्ष') || text.includes('sal') ||
+        text.includes('november') || text.includes('december') || text.includes('january') || text.includes('february') || text.includes('march') ||
+        text.includes('subah') || text.includes('सुबह') || text.includes('shaam') || text.includes('शाम') || text.includes('raat') || text.includes('रात') ||
+        text.includes('aaj') || text.includes('आज') || text.includes('teer') || text.includes('chot') || text.includes('चोट') ||
+        text.includes('accident') || text.includes('gir') || text.includes('lagi') || text.includes('shuru') || text.includes('शुरू') ||
+        text.includes('since') || text.includes('started') || /\b(se|ago)\b/.test(text) || text.includes('से') ||
+        (effectiveTargetSlot === 'durationOnset' && isSubstantive)
       )
     ) {
-      slots.durationOnset = latestText;
+      slots.durationOnset = latestText.trim();
     }
 
     // --------------------------------------------------------------------------
-    // 3. CHARACTER & QUALITY OF SENSATION (Specific descriptive quality only)
+    // 3. CHARACTER & QUALITY OF SENSATION (Expanded synonyms + context fallback)
     // --------------------------------------------------------------------------
     if (
       !slots.characterQuality &&
       (
-        text.includes('crush') || text.includes('pressure') || text.includes('dabav') || text.includes('दबाव') ||
-        text.includes('sharp') || text.includes('stabbing') || text.includes('chubhan') || text.includes('चुभन') ||
-        text.includes('jalan') || text.includes('जलन') || text.includes('burning') ||
-        text.includes('aithan') || text.includes('ऐंठन') || text.includes('cramp') || text.includes('kheencho') ||
-        text.includes('akdan') || text.includes('अकड़न') || text.includes('stiff') ||
-        text.includes('bhari') || text.includes('भारी') || text.includes('dull') || text.includes('meetha dard') ||
-        text.includes('throbbing') || text.includes('spasm') ||
-        text.includes('thand') || text.includes('ठंड') || text.includes('chill') || text.includes('shivering') ||
-        text.includes('kampan') || text.includes('कंपकंपी') || text.includes('badan dard') || text.includes('बदन दर्द') ||
-        text.includes('tootan') || text.includes('टूटना') || text.includes('body ache')
+        text.includes('crush') || text.includes('pressure') || text.includes('dabav') || text.includes('दबाव') || text.includes('dabna') ||
+        text.includes('sharp') || text.includes('stabbing') || text.includes('chubhan') || text.includes('चुभन') || text.includes('chubhta') || text.includes('चुभता') ||
+        text.includes('jalan') || text.includes('जलन') || text.includes('jalna') || text.includes('burning') ||
+        text.includes('aithan') || text.includes('ऐंठन') || text.includes('cramp') || text.includes('kheencho') || text.includes('khinchav') || text.includes('खिंचाव') ||
+        text.includes('marod') || text.includes('मरोड़') || text.includes('spasm') ||
+        text.includes('akdan') || text.includes('अकड़न') || text.includes('stiff') || text.includes('stiffness') ||
+        text.includes('toot') || text.includes('टूट') || text.includes('tootan') || text.includes('टूटना') || text.includes('tootna') ||
+        text.includes('dukhna') || text.includes('दुखना') || text.includes('dukh') || text.includes('dard') || text.includes('ache') || text.includes('aching') ||
+        text.includes('fatan') || text.includes('फटना') || text.includes('kasaav') || text.includes('कसाव') || text.includes('tight') ||
+        text.includes('bhari') || text.includes('भारी') || text.includes('bhareepan') || text.includes('भारीपन') || text.includes('dull') || text.includes('meetha dard') ||
+        text.includes('throbbing') || text.includes('pulsat') || text.includes('dhadkan') || text.includes('धड़कन') || text.includes('thanak') || text.includes('ठनक') ||
+        text.includes('thand') || text.includes('ठंड') || text.includes('chill') || text.includes('chills') || text.includes('shiver') || text.includes('shivering') ||
+        text.includes('kampan') || text.includes('कंपकंपी') || text.includes('kapkapi') || text.includes('badan dard') || text.includes('बदन दर्द') || text.includes('body ache') ||
+        (effectiveTargetSlot === 'characterQuality' && isSubstantive)
       )
     ) {
-      slots.characterQuality = latestText;
+      slots.characterQuality = latestText.trim();
     }
 
     // --------------------------------------------------------------------------
-    // 4. SEVERITY INTENSITY (Pain scale 1-10 or fever temperature)
+    // 4. SEVERITY INTENSITY (Pain scale 1-10, fever temperature, or descriptive)
     // --------------------------------------------------------------------------
-    const scaleMatch = text.match(/([1-9]|10)\s*(\/|out\s*of)\s*10/) || text.match(/(intensity|score|scale|level|severity|dard|temperature|bukhar)\s*(is|:|=)?\s*([1-9]|10|\d{2,3})\b/);
+    const scaleMatch = text.match(/([1-9]|10)\s*(\/|out\s*of)\s*10/) || text.match(/(intensity|score|scale|level|severity|dard|temperature|bukhar|tapman)\s*(is|:|=)?\s*([1-9]|10|\d{2,3}(?:\.\d)?)\b/);
     if (scaleMatch) {
-      const parsedVal = parseInt(scaleMatch[3] || scaleMatch[1], 10);
+      const parsedVal = parseFloat(scaleMatch[3] || scaleMatch[1]);
       if (!isNaN(parsedVal)) {
         if (parsedVal <= 10 && parsedVal >= 1) {
-          slots.severityNumber = parsedVal;
+          slots.severityNumber = Math.round(parsedVal);
         } else if (parsedVal >= 102) {
           slots.severityNumber = 8; // High fever
         } else if (parsedVal >= 100) {
@@ -196,15 +214,26 @@ export class AdaptiveClinicalInterviewEngine {
         }
       }
     } else if (slots.severityNumber === undefined) {
-      if (text.includes('102') || text.includes('103') || text.includes('104') || text.includes('high fever') || text.includes('bahut tej bukhar') || text.includes('तेज बुखार') || text.includes('severe') || text.includes('unbearable')) {
+      if (text.includes('102') || text.includes('103') || text.includes('104') || text.includes('high fever') || text.includes('bahut tej bukhar') || text.includes('तेज बुखार') || text.includes('severe') || text.includes('unbearable') || text.includes('asahniya')) {
         slots.severityNumber = 8;
-      } else if (text.includes('100') || text.includes('101') || text.includes('moderate fever') || text.includes('madhyam')) {
+      } else if (text.includes('100') || text.includes('101') || text.includes('moderate fever') || text.includes('madhyam') || text.includes('theek thaak')) {
         slots.severityNumber = 6;
-      } else if (text.includes('99') || text.includes('halka bukhar') || text.includes('हल्का बुखार') || text.includes('mild') || text.includes('kam dard')) {
+      } else if (text.includes('99') || text.includes('halka bukhar') || text.includes('हल्का बुखार') || text.includes('mild') || text.includes('kam dard') || text.includes('halka')) {
         slots.severityNumber = 4;
-      } else if (text.includes('/10') || text.includes('out of 10') || text.includes('scale') || text.includes('rate')) {
+      } else if (text.includes('/10') || text.includes('out of 10') || text.includes('scale') || text.includes('rate') || text.includes('नंबर') || text.includes('number')) {
         const num = text.match(/\b([1-9]|10)\b/);
         if (num) slots.severityNumber = parseInt(num[1], 10);
+      } else if (effectiveTargetSlot === 'severityNumber') {
+        const num = text.match(/\b([1-9]|10)\b/);
+        if (num) {
+          slots.severityNumber = parseInt(num[1], 10);
+        } else if (text.includes('bahut') || text.includes('बहुत') || text.includes('tej') || text.includes('तेज') || text.includes('zyada') || text.includes('ज्यादा')) {
+          slots.severityNumber = 8;
+        } else if (text.includes('kam') || text.includes('कम') || text.includes('halka') || text.includes('हल्का')) {
+          slots.severityNumber = 4;
+        } else if (isSubstantive) {
+          slots.severityNumber = 6; // Default substantive response to moderate
+        }
       }
     }
 
@@ -214,13 +243,19 @@ export class AdaptiveClinicalInterviewEngine {
     if (
       !slots.radiationLocation &&
       (
-        text.includes('kamar') || text.includes('कमर') || text.includes('hip') || text.includes('koolhe') ||
-        text.includes('arm') || text.includes('shoulder') || text.includes('haath') || text.includes('neck') ||
-        text.includes('jaw') || text.includes('jabde') || text.includes('gale') || text.includes('peeth') ||
-        text.includes('spread') || text.includes('radiat') || text.includes('fail')
+        text.includes('kamar') || text.includes('कमर') || text.includes('hip') || text.includes('koolhe') || text.includes('कूल्हे') ||
+        text.includes('arm') || text.includes('shoulder') || text.includes('haath') || text.includes('हाथ') || text.includes('baanh') || text.includes('बांह') ||
+        text.includes('neck') || text.includes('gardan') || text.includes('गर्दन') || text.includes('jaw') || text.includes('jabde') || text.includes('जबड़े') ||
+        text.includes('gale') || text.includes('गले') || text.includes('peeth') || text.includes('पीठ') || text.includes('back') ||
+        text.includes('spread') || text.includes('radiat') || text.includes('fail') || text.includes('फैल') ||
+        (effectiveTargetSlot === 'radiationLocation' && isSubstantive)
       )
     ) {
-      slots.radiationLocation = latestText;
+      if (/^(nahi|no|kuch nahi|kahi nahi|koi nahi|none|nil|नहीं)$/i.test(text)) {
+        slots.radiationLocation = 'None reported / No radiation';
+      } else {
+        slots.radiationLocation = latestText.trim();
+      }
     }
 
     if (text.includes('sujan') || text.includes('सूजन') || text.includes('swelling') || text.includes('edema')) {
@@ -229,7 +264,7 @@ export class AdaptiveClinicalInterviewEngine {
     if (text.includes('sunn') || text.includes('सुन्न') || text.includes('numb') || text.includes('jhanjhana') || text.includes('tingling')) {
       if (!slots.associatedSymptoms?.includes('Numbness / Paresthesia')) slots.associatedSymptoms?.push('Numbness / Paresthesia');
     }
-    if (text.includes('chalne') || text.includes('walk') || text.includes('langda') || text.includes('chalne me')) {
+    if (text.includes('chalne') || text.includes('चलने') || text.includes('walk') || text.includes('langda') || text.includes('chalne me')) {
       if (!slots.associatedSymptoms?.includes('Difficulty Walking')) slots.associatedSymptoms?.push('Difficulty Walking');
     }
     if (text.includes('sweat') || text.includes('pasina') || text.includes('पसीना')) {
@@ -242,33 +277,42 @@ export class AdaptiveClinicalInterviewEngine {
       slots.redFlagSymptoms?.push('Acute Dyspnea');
       slots.isRedFlagTriggered = true;
     }
-    if (text.includes('cough') || text.includes('khansi') || text.includes('खांसी') || text.includes('sardi') || text.includes('सर्दी') || text.includes('cold')) {
+    if (text.includes('cough') || text.includes('khansi') || text.includes('खांसी') || text.includes('sardi') || text.includes('सर्दी') || text.includes('cold') || text.includes('jukam') || text.includes('जुकाम')) {
       if (!slots.associatedSymptoms?.includes('Cough / Respiratory Symptoms')) slots.associatedSymptoms?.push('Cough / Respiratory Symptoms');
     }
-    if (text.includes('vomit') || text.includes('ulti') || text.includes('उल्टी') || text.includes('nausea') || text.includes('ji michlana')) {
+    if (text.includes('vomit') || text.includes('ulti') || text.includes('उल्टी') || text.includes('nausea') || text.includes('ji michlana') || text.includes('जी मिचलाना')) {
       if (!slots.associatedSymptoms?.includes('Nausea / Vomiting')) slots.associatedSymptoms?.push('Nausea / Vomiting');
     }
-    if (text.includes('gala') || text.includes('गले') || text.includes('throat') || text.includes('kharaash')) {
+    if (text.includes('gala') || text.includes('गले') || text.includes('throat') || text.includes('kharaash') || text.includes('खराश')) {
       if (!slots.associatedSymptoms?.includes('Sore Throat / Pharyngitis')) slots.associatedSymptoms?.push('Sore Throat / Pharyngitis');
+    }
+    if (text.includes('peshab') || text.includes('पेशाब') || text.includes('urine') || text.includes('jalan')) {
+      if (!slots.associatedSymptoms?.includes('Dysuria / Urinary Discomfort')) slots.associatedSymptoms?.push('Dysuria / Urinary Discomfort');
     }
 
     // --------------------------------------------------------------------------
-    // 6. PAST MEDICAL HISTORY & MEDICATIONS
+    // 6. PAST MEDICAL HISTORY & MEDICATIONS (Keywords + context fallback)
     // --------------------------------------------------------------------------
     if (
       (!slots.pastHistory || slots.pastHistory.length === 0) &&
       (
         text.includes('bp') || text.includes('hypertension') || text.includes('sugar') ||
-        text.includes('diabetes') || text.includes('uric') || text.includes('thyroid') ||
-        text.includes('heart') || text.includes('purani bimari') || text.includes('पुरानी बीमारी') ||
-        text.includes('dawa') || text.includes('dawai') || text.includes('medicine') || text.includes('tablet') ||
-        text.includes('paracetamol') || text.includes('pcm') || text.includes('dolo') || text.includes('crocin') ||
+        text.includes('diabetes') || text.includes('मधुमेह') || text.includes('uric') || text.includes('यूरिक') ||
+        text.includes('thyroid') || text.includes('थायरॉयड') || text.includes('heart') || text.includes('हार्ट') ||
+        text.includes('purani bimari') || text.includes('पुरानी बीमारी') ||
+        text.includes('dawa') || text.includes('dawai') || text.includes('दवा') || text.includes('दवाई') || text.includes('medicine') || text.includes('tablet') || text.includes('गोली') ||
+        text.includes('paracetamol') || text.includes('pcm') || text.includes('dolo') || text.includes('डोलो') || text.includes('crocin') || text.includes('क्रॉसिन') ||
         text.includes('calpol') || text.includes('combiflam') || text.includes('meftal') ||
         /\b(no|nahi|nhi|none|nil|kuch nahi|koi nahi|na|never)\b/.test(text) || text.includes('कोई बीमारी नहीं') ||
-        text.includes('नहीं है') || text.includes('कोई दवा नहीं')
+        text.includes('नहीं है') || text.includes('कोई दवा नहीं') ||
+        (effectiveTargetSlot === 'pastHistory' && isSubstantive)
       )
     ) {
-      slots.pastHistory = [latestText];
+      if (/^(no|nahi|nhi|none|nil|kuch nahi|koi nahi|na|never|नहीं|कोई बीमारी नहीं|नहीं है|कोई दवा नहीं)$/i.test(text)) {
+        slots.pastHistory = ['None reported / No pre-existing conditions or regular medications'];
+      } else {
+        slots.pastHistory = [latestText.trim()];
+      }
     }
 
     return slots;
@@ -552,76 +596,86 @@ export class AdaptiveClinicalInterviewEngine {
       : 'Thank you, your clinical symptoms, severity, and medical history have been thoroughly recorded. Now proceeding to Step 2 for the Ayurvedic & Lifestyle Assessment.';
   }
 
+  /**
+   * Deterministically verifies if an AI response is a pure closing statement.
+   * STRICT GUARD: If the message contains a question mark '?' or active question words,
+   * it returns FALSE to ensure the patient is never skipped.
+   */
   public isClosingStatement(text: string): boolean {
     if (!text || typeof text !== 'string') return false;
-    const clean = sanitizeAIResponse(text).toLowerCase().trim();
-    if (!clean) return false;
+    const clean = sanitizeAIResponse(text);
+    const lower = clean.toLowerCase().trim();
+    if (!lower) return false;
 
-    // A question that ends with ? is asking something from the patient, NOT closing!
-    if (clean.endsWith('?') || clean.endsWith('？')) {
+    // GUARD 1: Any question mark indicates a pending question -> NEVER a closing statement!
+    if (lower.includes('?') || lower.includes('？')) {
       return false;
     }
 
-    // 1. Direct explicit keywords across English and Hindi
+    // GUARD 2: Any question-pattern words directed at the patient -> NEVER a closing statement!
+    const questionPatterns = [
+      /\b(kya|kab|kahan|kaha|kaisa|kaisi|kaise|kitna|kitne|kitni|kaun|bataiye|bataye|batao)\b/i,
+      /\b(do you|are you|can you|is there|how|what|when|where|please tell)\b/i,
+      /(क्या|कब|कहाँ|कहां|कैसा|कैसी|कैसे|कितना|कितने|कितनी|कौन|बताइए|बताएं|बताओ)/
+    ];
+    for (const qPattern of questionPatterns) {
+      if (qPattern.test(lower)) {
+        return false;
+      }
+    }
+
+    // Direct explicit closing phrases (when NO question is present)
     const explicitClosingPhrases = [
       'step 2',
       'चरण 2',
       'चरण दो',
       'आयुर्वेद एवं जीवनशैली',
-      'ayurvedic',
+      'ayurvedic & lifestyle assessment',
+      'ayurvedic assessment',
       'thoroughly recorded',
-      'intake complete',
       'intake is complete',
-      'proceeding to',
-      'proceed to',
-      'next step',
-      'अगले चरण',
-      'आगे बढ़ते हैं',
-      'आगे बढ़ते हैं',
-      'आगे की प्रक्रिया',
-      'दर्ज कर लिया',
-      'दर्ज कर लिए',
-      'दर्ज हो चुका',
-      'दर्ज हो चुके',
-      'नोट कर लिया',
-      'नोट कर लिए',
+      'intake complete',
+      'proceeding to step 2',
+      'proceed to step 2',
+      'अगले चरण पर आगे बढ़ते हैं',
+      'अगले चरण पर आगे बढ़ते हैं',
+      'चरण 2 पर आगे बढ़ते हैं',
+      'चरण 2 पर आगे बढ़ते हैं',
       'पूर्ण रिकॉर्ड तैयार',
-      'रिकॉर्ड तैयार',
+      'रिकॉर्ड तैयार कर लिया गया है',
+      'विवरण दर्ज कर लिया गया है',
+      'सभी लक्षण दर्ज कर लिए गए हैं',
       'symptoms have been recorded',
       'symptoms are recorded',
       'details have been recorded',
       'information has been recorded',
       'all details recorded',
-      'ready for the doctor',
       'ready for triage',
     ];
 
     for (const phrase of explicitClosingPhrases) {
-      if (clean.includes(phrase)) return true;
+      if (lower.includes(phrase)) return true;
     }
 
-    // 2. Hindi Closing Combinations (e.g. धन्यवाद + नोट/रिकॉर्ड/लक्षण/जानकारी/जांच/प्रक्रिया/समस्या)
+    // Hindi Closing Combinations (धन्यवाद + दर्ज/रिकॉर्ड/तैयार/अगले चरण without questions)
     if (
-      clean.includes('धन्यवाद') &&
+      lower.includes('धन्यवाद') &&
       (
-        clean.includes('नोट') ||
-        clean.includes('दर्ज') ||
-        clean.includes('रिकॉर्ड') ||
-        clean.includes('लक्षण') ||
-        clean.includes('जानकारी') ||
-        clean.includes('जांच') ||
-        clean.includes('प्रक्रिया') ||
-        clean.includes('आगे') ||
-        clean.includes('तैयार')
+        lower.includes('दर्ज कर लिया') ||
+        lower.includes('रिकॉर्ड तैयार') ||
+        lower.includes('पूर्ण रिकॉर्ड') ||
+        lower.includes('अगले चरण') ||
+        lower.includes('चरण 2') ||
+        lower.includes('तैयार कर लिया')
       )
     ) {
       return true;
     }
 
-    // 3. English Closing Combinations (e.g. thank you / understood + symptoms / details / recorded)
+    // English Closing Combinations (thank you / noted + recorded / proceed without questions)
     if (
-      (clean.includes('thank you') || clean.includes('thanks') || clean.includes('understood') || clean.includes('got it') || clean.includes('noted')) &&
-      (clean.includes('record') || clean.includes('noted') || clean.includes('symptom') || clean.includes('detail') || clean.includes('intake') || clean.includes('proceed') || clean.includes('history'))
+      (lower.includes('thank you') || lower.includes('thanks') || lower.includes('understood')) &&
+      (lower.includes('recorded') || lower.includes('proceed to step 2') || lower.includes('proceeding to step 2'))
     ) {
       return true;
     }
@@ -630,12 +684,10 @@ export class AdaptiveClinicalInterviewEngine {
   }
 
   /**
-   * Evaluates if the clinical interview is ready for Step 2:
-   * 1. Chief Complaint & Location
-   * 2. Onset & Duration
-   * 3. Character & Sensation OR Severity Rating
-   * 4. Follow-up Detail (radiation/associated symptoms)
-   * 5. Past Medical History / Medications taken
+   * Evaluates if the clinical interview is ready for Step 2.
+   * - Rule 1 (Proper slot-based completion): All essential clinical pillars genuinely captured.
+   * - Rule 2 (Thorough multi-turn): 5+ patient exchanges with at least 4 core dimensions.
+   * - Rule 3 (Emergency loop prevention ONLY): 7+ turns with at least 3 core dimensions.
    */
   public isClinicalIntakeComplete(slots: ExtractedClinicalSlots, patientTurnCount?: number): boolean {
     const hasChiefComplaint = Boolean(slots.chiefComplaint && slots.chiefComplaint.trim().length > 0);
@@ -647,14 +699,20 @@ export class AdaptiveClinicalInterviewEngine {
       Boolean(slots.associatedSymptoms && slots.associatedSymptoms.length > 0);
     const hasHistoryOrMeds = Boolean(slots.pastHistory && slots.pastHistory.length > 0);
 
-    // Rule 1: Genuine 5-Pillar Coverage: Chief Complaint + Onset + (Character OR Severity) + Follow-up Detail + History/Meds
+    const validSlotCount = [hasOnsetAndDuration, hasCharacter, hasSeverity, hasFollowUpDetail, hasHistoryOrMeds].filter(Boolean).length;
+
+    // Rule 1: Full core coverage: Chief Complaint + Onset + (Character OR Severity) + Follow-up detail + History/Meds
     if (hasChiefComplaint && hasOnsetAndDuration && (hasCharacter || hasSeverity) && hasFollowUpDetail && hasHistoryOrMeds) {
       return true;
     }
 
-    // Rule 2: Minimum 5 exchanges safety limit — only if chief complaint + onset + 2 other core dimensions are filled
-    const validSlotCount = [hasOnsetAndDuration, hasCharacter, hasSeverity, hasFollowUpDetail, hasHistoryOrMeds].filter(Boolean).length;
-    if (patientTurnCount && patientTurnCount >= 5 && hasChiefComplaint && validSlotCount >= 3) {
+    // Rule 2: Minimum 5 exchanges with chief complaint and at least 4 of the 5 core dimensions filled
+    if (patientTurnCount && patientTurnCount >= 5 && hasChiefComplaint && validSlotCount >= 4) {
+      return true;
+    }
+
+    // Rule 3: Safety limit — emergency loop-breaker only for long/confused conversations (7+ turns) with at least 3 dimensions
+    if (patientTurnCount && patientTurnCount >= 7 && hasChiefComplaint && validSlotCount >= 3) {
       return true;
     }
 
