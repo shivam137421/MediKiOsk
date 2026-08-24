@@ -229,20 +229,21 @@ export class AdaptiveClinicalInterviewEngine {
       slots.redFlagSymptoms?.push('Acute Dyspnea');
       slots.isRedFlagTriggered = true;
     }
-
     // --------------------------------------------------------------------------
     // 6. PAST MEDICAL HISTORY & MEDICATIONS
     // --------------------------------------------------------------------------
     if (
-      slots.pastHistory?.length === 0 &&
+      (!slots.pastHistory || slots.pastHistory.length === 0) &&
       (
         text.includes('bp') || text.includes('hypertension') || text.includes('sugar') ||
         text.includes('diabetes') || text.includes('uric') || text.includes('thyroid') ||
         text.includes('heart') || text.includes('purani bimari') || text.includes('पुरानी बीमारी') ||
-        /\b(no|nahi|nhi|none|nil|kuch nahi|koi nahi)\b/.test(text) || text.includes('कोई बीमारी नहीं')
+        text.includes('dawa') || text.includes('dawai') || text.includes('medicine') || text.includes('tablet') ||
+        /\b(no|nahi|nhi|none|nil|kuch nahi|koi nahi|na|never)\b/.test(text) || text.includes('कोई बीमारी नहीं') ||
+        text.includes('नहीं है') || text.includes('कोई दवा नहीं')
       )
     ) {
-      slots.pastHistory?.push(latestText);
+      slots.pastHistory = [latestText];
     }
 
     return slots;
@@ -258,10 +259,12 @@ export class AdaptiveClinicalInterviewEngine {
   ): { questionText: string; isReadyForStep2: boolean; targetSlot: string } {
     const isHi = language === 'hi';
     const cc = (slots.chiefComplaint || '').toLowerCase();
-    const isLeg = cc.includes('leg') || cc.includes('pair') || cc.includes('lower');
-    const isKnee = cc.includes('knee') || cc.includes('joint');
-    const isChest = cc.includes('chest') || cc.includes('precordial');
-    const isAbdomen = cc.includes('abdomen') || cc.includes('dyspepsia');
+    const isLeg = cc.includes('leg') || cc.includes('pair') || cc.includes('lower') || cc.includes('calf');
+    const isKnee = cc.includes('knee') || cc.includes('joint') || cc.includes('घुटन');
+    const isChest = cc.includes('chest') || cc.includes('precordial') || cc.includes('सीन');
+    const isAbdomen = cc.includes('abdomen') || cc.includes('dyspepsia') || cc.includes('pet') || cc.includes('पेट');
+    const isHead = cc.includes('head') || cc.includes('sir') || cc.includes('सिर') || cc.includes('migraine');
+    const isFever = cc.includes('fever') || cc.includes('bukhar') || cc.includes('बुखार') || cc.includes('pyrexia');
 
     // --------------------------------------------------------------------------
     // GAP 1: ONSET / DURATION (Only ask if UNKNOWN)
@@ -270,8 +273,8 @@ export class AdaptiveClinicalInterviewEngine {
       if (isLeg) {
         return {
           questionText: isHi
-            ? 'पैरों में यह दर्द कब से शुरू हुआ? क्या यह किसी चोट/खिंचाव के बाद हुआ या अचानक बिना किसी कारण के?'
-            : 'When did this leg pain start? Did it happen after an injury/strain or begin suddenly?',
+            ? 'पैरों में यह दर्द कब से शुरू हुआ है? क्या यह अचानक शुरू हुआ या किसी खिंचाव/चोट के बाद हुआ?'
+            : 'When did this leg pain start? Did it begin suddenly or after an injury/strain?',
           isReadyForStep2: false,
           targetSlot: 'durationOnset',
         };
@@ -279,8 +282,8 @@ export class AdaptiveClinicalInterviewEngine {
       if (isKnee) {
         return {
           questionText: isHi
-            ? 'घुटनों में यह तकलीफ कब से है? क्या यह कुछ दिनों से है या कई महीनों से बनी हुई है?'
-            : 'How long have you had this knee discomfort? Has it been present for days or several months?',
+            ? 'घुटनों में यह तकलीफ कितने समय से है? क्या यह कुछ दिनों से है या कई महीनों से बनी हुई है?'
+            : 'How long have you had this knee discomfort? Has it been present for a few days or several months?',
           isReadyForStep2: false,
           targetSlot: 'durationOnset',
         };
@@ -290,6 +293,33 @@ export class AdaptiveClinicalInterviewEngine {
           questionText: isHi
             ? 'सीने में यह तकलीफ कितने समय से हो रही है? क्या यह अचानक शुरू हुई है?'
             : 'When did this chest discomfort start? Did it begin suddenly within the last few hours?',
+          isReadyForStep2: false,
+          targetSlot: 'durationOnset',
+        };
+      }
+      if (isAbdomen) {
+        return {
+          questionText: isHi
+            ? 'पेट में यह दर्द कब से शुरू हुआ है और क्या यह कुछ खाने-पीने के बाद बढ़ा?'
+            : 'When did this abdominal pain begin, and did it start after eating or drinking anything?',
+          isReadyForStep2: false,
+          targetSlot: 'durationOnset',
+        };
+      }
+      if (isHead) {
+        return {
+          questionText: isHi
+            ? 'सिरदर्द कब से शुरू हुआ है? क्या यह अचानक तेज हुआ है या धीरे-धीरे बढ़ रहा है?'
+            : 'When did this headache start? Did it begin suddenly or build up gradually?',
+          isReadyForStep2: false,
+          targetSlot: 'durationOnset',
+        };
+      }
+      if (isFever) {
+        return {
+          questionText: isHi
+            ? 'बुखार कितने दिनों से आ रहा है और क्या यह लगातार बना रहता है?'
+            : 'How many days have you had this fever, and is it continuous or coming in spikes?',
           isReadyForStep2: false,
           targetSlot: 'durationOnset',
         };
@@ -310,8 +340,8 @@ export class AdaptiveClinicalInterviewEngine {
       if (isLeg) {
         return {
           questionText: isHi
-            ? 'पैरों का दर्द किस प्रकार का महसूस होता है? क्या मांसपेशियों में ऐंठन/खिंचाव है, पिंडलियों में भारीपन है, या नसों में दर्द है?'
-            : 'What type of pain is it in your legs? Is it muscle cramping/spasm, heaviness in calves, or nerve tingling?',
+            ? 'पैरों का दर्द किस प्रकार का महसूस होता है? क्या मांसपेशियों में ऐंठन/खिंचाव है, पिंडलियों में भारीपन है, या नसों में चुभन है?'
+            : 'What type of pain is it in your legs? Is it muscle cramping/spasm, heaviness in calves, or sharp nerve tingling?',
           isReadyForStep2: false,
           targetSlot: 'characterQuality',
         };
@@ -319,7 +349,7 @@ export class AdaptiveClinicalInterviewEngine {
       if (isKnee) {
         return {
           questionText: isHi
-            ? 'घुटनों में दर्द के साथ क्या सुबह अकड़न रहती है या मुड़ने में चटकने की आवाज आती है?'
+            ? 'घुटनों में दर्द के साथ क्या सुबह अकड़न रहती है या मुड़ने में चटकने की आवाज और खिंचाव महसूस होता है?'
             : 'Along with the knee pain, do you experience morning stiffness or a cracking sensation when bending?',
           isReadyForStep2: false,
           targetSlot: 'characterQuality',
@@ -328,8 +358,26 @@ export class AdaptiveClinicalInterviewEngine {
       if (isChest) {
         return {
           questionText: isHi
-            ? 'सीने का दर्द किस प्रकार का महसूस होता है? क्या भारी दबाव/निचोड़ने जैसा है या जलन जैसा?'
+            ? 'सीने का दर्द किस प्रकार का महसूस होता है? क्या भारी दबाव/निचोड़ने जैसा है या तेज जलन/चुभन जैसा?'
             : 'How does the chest pain feel? Is it heavy crushing pressure/squeezing, or sharp/burning?',
+          isReadyForStep2: false,
+          targetSlot: 'characterQuality',
+        };
+      }
+      if (isAbdomen) {
+        return {
+          questionText: isHi
+            ? 'पेट का दर्द कैसा महसूस हो रहा है? क्या मरोड़ (ऐंठन) है, भारी जलन है या लगातार मीठा दर्द बना है?'
+            : 'How does the abdominal pain feel? Is it cramping/colicky, sharp burning, or a constant dull ache?',
+          isReadyForStep2: false,
+          targetSlot: 'characterQuality',
+        };
+      }
+      if (isHead) {
+        return {
+          questionText: isHi
+            ? 'सिरदर्द किस प्रकार का है? क्या नसों में धड़कन (throbbing) जैसा है, भारीपन है या माथे में तेज चुभन है?'
+            : 'What type of headache is it? Is it pulsating/throbbing, a heavy tight band, or sharp localized pain?',
           isReadyForStep2: false,
           targetSlot: 'characterQuality',
         };
@@ -338,8 +386,8 @@ export class AdaptiveClinicalInterviewEngine {
         questionText: isHi
           ? 'यह दर्द किस प्रकार का महसूस होता है? क्या यह तेज है, भारीपन जैसा है या चुभन जैसा?'
           : 'How would you describe the feeling? Is it sharp, heavy, throbbing, or burning?',
-          isReadyForStep2: false,
-          targetSlot: 'characterQuality',
+        isReadyForStep2: false,
+        targetSlot: 'characterQuality',
       };
     }
 
@@ -349,22 +397,31 @@ export class AdaptiveClinicalInterviewEngine {
     if (slots.severityNumber === undefined) {
       return {
         questionText: isHi
-          ? '1 से 10 के पैमाने पर आप इस दर्द की तीव्रता को कितना अंक देंगे (जहाँ 1 हल्का और 10 असहनीय दर्द हो)?'
-          : 'On a scale of 1 to 10 (where 1 is mild and 10 is unbearable), how severe is your pain?',
+          ? '1 से 10 के पैमाने पर आप इस दर्द/तकलीफ की तीव्रता को कितना अंक देंगे (जहाँ 1 हल्का और 10 असहनीय दर्द हो)?'
+          : 'On a scale of 1 to 10 (where 1 is mild discomfort and 10 is unbearable pain), how would you rate the severity?',
         isReadyForStep2: false,
         targetSlot: 'severityNumber',
       };
     }
 
     // --------------------------------------------------------------------------
-    // GAP 4: RADIATION / SPREAD / SWELLING (Only ask if UNKNOWN)
+    // GAP 4: RADIATION / ASSOCIATED SYMPTOMS / TRIGGERS (Only ask if UNKNOWN)
     // --------------------------------------------------------------------------
     if (!slots.radiationLocation && (!slots.associatedSymptoms || slots.associatedSymptoms.length === 0)) {
       if (isLeg) {
         return {
           questionText: isHi
-            ? 'क्या यह दर्द कमर या कूल्हे से नीचे पैर की तरफ फैलता है, और क्या पैरों में कोई सूजन (swelling) या सुन्नपन है?'
-            : 'Does the pain radiate down from your lower back/hip, and is there any leg swelling or numbness?',
+            ? 'क्या यह दर्द कमर या कूल्हे से नीचे पैर की तरफ फैलता है, और क्या पैरों में कोई सूजन (swelling) या चलने में तकलीफ है?'
+            : 'Does the pain radiate down from your lower back/hip, and is there any swelling or difficulty walking?',
+          isReadyForStep2: false,
+          targetSlot: 'radiationLocation',
+        };
+      }
+      if (isKnee) {
+        return {
+          questionText: isHi
+            ? 'क्या जोड़ों में कोई सूजन (swelling) या लाली है, और क्या सीढ़ियां चढ़ने या बैठने पर दर्द ज्यादा बढ़ता है?'
+            : 'Is there any joint swelling or redness, and does the pain worsen while climbing stairs or sitting down?',
           isReadyForStep2: false,
           targetSlot: 'radiationLocation',
         };
@@ -372,8 +429,8 @@ export class AdaptiveClinicalInterviewEngine {
       if (isChest) {
         return {
           questionText: isHi
-            ? 'क्या यह दर्द आपके बाएँ हाथ, कंधे, गर्दन या जबड़े की तरफ भी फैल रहा है, और क्या पसीना आ रहा है?'
-            : 'Does the pain radiate to your left arm, shoulder, neck, or jaw, and are you sweating?',
+            ? 'क्या यह दर्द आपके बाएँ हाथ, कंधे, गर्दन या जबड़े की तरफ भी फैल रहा है, और क्या सांस फूलने या पसीना आने की शिकायत है?'
+            : 'Does the pain radiate to your left arm, shoulder, neck, or jaw, and are you having breathlessness or cold sweating?',
           isReadyForStep2: false,
           targetSlot: 'radiationLocation',
         };
@@ -381,12 +438,28 @@ export class AdaptiveClinicalInterviewEngine {
       if (isAbdomen) {
         return {
           questionText: isHi
-            ? 'क्या पेट का दर्द पीठ की तरफ भी फैलता है, और क्या उल्टी या जी मिचलाने की शिकायत है?'
-            : 'Does the abdominal pain radiate to your back, and are you experiencing nausea or vomiting?',
+            ? 'क्या पेट का दर्द पीठ की तरफ भी फैलता है, और क्या उल्टी, जी मिचलाना या दस्त की शिकायत है?'
+            : 'Does the abdominal pain radiate to your back, and are you experiencing nausea, vomiting, or loose stools?',
           isReadyForStep2: false,
           targetSlot: 'radiationLocation',
         };
       }
+      if (isHead) {
+        return {
+          questionText: isHi
+            ? 'क्या सिरदर्द के साथ आँखों में भारीपन, उल्टी का मन या रोशनी/आवाज से परेशानी हो रही है?'
+            : 'Along with the headache, do you have nausea, eye strain, or sensitivity to light/sound?',
+          isReadyForStep2: false,
+          targetSlot: 'radiationLocation',
+        };
+      }
+      return {
+        questionText: isHi
+          ? 'क्या इस दर्द के साथ कोई अन्य लक्षण (जैसे सूजन, सुन्नपन या कमजोरी) भी महसूस हो रहे हैं?'
+          : 'Are there any other associated symptoms like swelling, numbness, or weakness?',
+        isReadyForStep2: false,
+        targetSlot: 'radiationLocation',
+      };
     }
 
     // --------------------------------------------------------------------------
@@ -395,15 +468,15 @@ export class AdaptiveClinicalInterviewEngine {
     if (!slots.pastHistory || slots.pastHistory.length === 0) {
       return {
         questionText: isHi
-          ? 'क्या आपको पहले से डायबिटीज (शुगर), यूरिक एसिड, हाई बीपी या थायरॉयड की कोई बीमारी है और क्या आप कोई नियमित दवा ले रहे हैं?'
-          : 'Do you have any past medical history such as Diabetes, High Uric Acid, BP, or Thyroid, and are you taking any medicines?',
-        isReadyForStep2: true,
+          ? 'क्या आपको पहले से डायबिटीज (शुगर), हाई बीपी, यूरिक एसिड या थायरॉयड की कोई बीमारी है और क्या आप कोई नियमित दवा ले रहे हैं?'
+          : 'Do you have any past medical conditions such as Diabetes, High BP, Uric Acid, or Thyroid, and are you taking any regular medications?',
+        isReadyForStep2: false,
         targetSlot: 'pastHistory',
       };
     }
 
     // --------------------------------------------------------------------------
-    // ALL GAPS SATISFIED -> SMOOTH CONCLUSION TO STEP 2
+    // ALL 5 CORE PILLARS GENUINELY SATISFIED -> SMOOTH CONCLUSION TO STEP 2
     // --------------------------------------------------------------------------
     return {
       questionText: this.getClosingStatement(language),
@@ -414,44 +487,48 @@ export class AdaptiveClinicalInterviewEngine {
 
   public getClosingStatement(language: 'hi' | 'en'): string {
     return language === 'hi'
-      ? 'धन्यवाद, आपके लक्षणों और चिकित्सीय इतिहास का पूर्ण रिकॉर्ड तैयार कर लिया गया है। अब अगले चरण (आयुर्वेद एवं जीवनशैली परीक्षा) पर आगे बढ़ते हैं।'
-      : 'Thank you, your clinical symptoms and medical history have been thoroughly recorded. Now proceeding to Step 2 for the Ayurvedic & Lifestyle Assessment.';
+      ? 'धन्यवाद, आपके मुख्य लक्षणों, दर्द की तीव्रता और चिकित्सीय इतिहास का पूर्ण रिकॉर्ड तैयार कर लिया गया है। अब अगले चरण (आयुर्वेद एवं जीवनशैली परीक्षा) पर आगे बढ़ते हैं।'
+      : 'Thank you, your clinical symptoms, pain severity, and medical history have been thoroughly recorded. Now proceeding to Step 2 for the Ayurvedic & Lifestyle Assessment.';
   }
 
   public isClosingStatement(text: string): boolean {
     if (!text) return false;
     const lower = text.toLowerCase();
     return (
-      lower.includes('धन्यवाद') ||
-      lower.includes('दर्ज कर लिया') ||
-      lower.includes('तैयार कर लिया') ||
+      (lower.includes('धन्यवाद') && (lower.includes('रिकॉर्ड') || lower.includes('चरण 2') || lower.includes('आयुर्वेद'))) ||
       lower.includes('चरण 2') ||
-      lower.includes('आयुर्वेद') ||
-      lower.includes('step 2') ||
-      lower.includes('ayurvedic') ||
-      lower.includes('assessment') ||
-      lower.includes('proceed to') ||
-      lower.includes('recorded') ||
-      lower.includes('intake complete') ||
-      lower.includes('thank you')
+      lower.includes('आयुर्वेद एवं जीवनशैली') ||
+      lower.includes('step 2 for the ayurvedic') ||
+      lower.includes('thoroughly recorded. now proceeding to step 2') ||
+      lower.includes('intake complete')
     );
   }
 
+  /**
+   * Evaluates if the clinical interview is truly complete across all 5 core pillars:
+   * 1. Chief Complaint & Location
+   * 2. Onset & Duration
+   * 3. Character & Sensation
+   * 4. Severity Rating (1-10)
+   * 5. Follow-up Detail (radiation/associated symptoms) OR Past Medical History
+   */
   public isClinicalIntakeComplete(slots: ExtractedClinicalSlots, patientTurnCount?: number): boolean {
-    // If patient has completed 4 turns, automatically complete to prevent interrogation fatigue
-    if (patientTurnCount && patientTurnCount >= 4) return true;
-
     const hasChiefComplaint = Boolean(slots.chiefComplaint && slots.chiefComplaint.trim().length > 0);
-    const hasOnset = Boolean(slots.durationOnset && slots.durationOnset.trim().length > 0);
-    const hasHistory = Boolean(slots.pastHistory && slots.pastHistory.length > 0);
-    const hasDetail =
-      slots.severityNumber !== undefined ||
-      Boolean(slots.characterQuality && slots.characterQuality.trim().length > 0) ||
-      Boolean(slots.radiationLocation) ||
+    const hasOnsetAndDuration = Boolean(slots.durationOnset && slots.durationOnset.trim().length > 0);
+    const hasCharacter = Boolean(slots.characterQuality && slots.characterQuality.trim().length > 0);
+    const hasSeverity = slots.severityNumber !== undefined && slots.severityNumber !== null;
+    const hasFollowUpDetail =
+      Boolean(slots.radiationLocation && slots.radiationLocation.trim().length > 0) ||
       Boolean(slots.associatedSymptoms && slots.associatedSymptoms.length > 0);
+    const hasHistoryOrMeds = Boolean(slots.pastHistory && slots.pastHistory.length > 0);
 
-    // If chief complaint + onset + any details or history are present, intake is complete
-    if (hasChiefComplaint && hasOnset && (hasHistory || hasDetail)) {
+    // Strict 5-Pillar Rule: Chief Complaint + Onset + Character + Severity + (Follow-up detail OR History)
+    if (hasChiefComplaint && hasOnsetAndDuration && hasCharacter && hasSeverity && (hasFollowUpDetail || hasHistoryOrMeds)) {
+      return true;
+    }
+
+    // Safety limit to prevent infinite loops: 6+ distinct patient turns with complaint + at least 2 core slots
+    if (patientTurnCount && patientTurnCount >= 6 && hasChiefComplaint && (hasOnsetAndDuration || hasCharacter || hasSeverity)) {
       return true;
     }
 

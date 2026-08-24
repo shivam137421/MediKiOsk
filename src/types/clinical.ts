@@ -77,13 +77,18 @@ export interface Document {
   encounter_id: string;
   patient_id: string;
   file_name: string;
-  file_path: string;
+  file_path?: string;
   file_type: string;
-  file_size_bytes: number;
-  ocr_status: string;
-  ocr_provider: string;
-  raw_ocr_text: string | null;
-  confidence: number | null;
+  file_size_bytes?: number;
+  ocr_status?: string;
+  ocr_provider?: string;
+  raw_ocr_text?: string | null;
+  confidence?: number | null;
+  storage_path?: string;
+  document_category?: string;
+  extracted_text?: string;
+  ocr_confidence?: number;
+  extracted_entities?: any;
   created_at: string;
 }
 
@@ -186,6 +191,8 @@ export interface AISuggestion {
   suggestion_type: string;
   title: string;
   details: string;
+  suggestion_text?: string;
+  confidence_score?: number;
   status: string;
   doctor_feedback: string | null;
   created_at: string;
@@ -195,13 +202,13 @@ export interface AyushAssessment {
   id: string;
   encounter_id: string;
   patient_id: string;
-  prakriti_primary: string;
+  prakriti_primary: string | null;
   prakriti_secondary: string | null;
-  vikriti_dosha: string;
-  agni_type: string;
-  koshtha_type: string;
+  vikriti_dosha: string | null;
+  agni_type: string | null;
+  koshtha_type: string | null;
   dhatu_affected: string[];
-  sattva_shakti: string;
+  sattva_shakti: string | null;
   ahara_vihara_notes: string | null;
   created_at: string;
 }

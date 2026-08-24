@@ -692,6 +692,69 @@ class MockDatabase {
     return this.aiSummaries[idx];
   }
 
+  public addDocument(doc: Omit<Document, 'id' | 'created_at'>): Document {
+    const newDoc: Document = {
+      ...doc,
+      id: `doc-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      created_at: new Date().toISOString(),
+    };
+    this.documents.push(newDoc);
+    this.notify();
+    return newDoc;
+  }
+
+  public getDocumentsByEncounter(encounterId: string): Document[] {
+    return this.documents.filter((d) => d.encounter_id === encounterId);
+  }
+
+  public getDocumentsByPatient(patientId: string): Document[] {
+    return this.documents.filter((d) => d.patient_id === patientId);
+  }
+
+  public addMedication(med: Omit<Medication, 'id' | 'created_at'>): Medication {
+    const newMed: Medication = {
+      ...med,
+      id: `med-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      created_at: new Date().toISOString(),
+    };
+    this.medications.push(newMed);
+    this.notify();
+    return newMed;
+  }
+
+  public addAllergy(allergy: Omit<Allergy, 'id' | 'created_at'>): Allergy {
+    const newAllergy: Allergy = {
+      ...allergy,
+      id: `alg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      created_at: new Date().toISOString(),
+    };
+    this.allergies.push(newAllergy);
+    this.notify();
+    return newAllergy;
+  }
+
+  public addInvestigation(inv: Omit<Investigation, 'id' | 'created_at'>): Investigation {
+    const newInv: Investigation = {
+      ...inv,
+      id: `inv-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      created_at: new Date().toISOString(),
+    };
+    this.investigations.push(newInv);
+    this.notify();
+    return newInv;
+  }
+
+  public addAyushAssessment(ayush: Omit<AyushAssessment, 'id' | 'created_at'>): AyushAssessment {
+    const newAyush: AyushAssessment = {
+      ...ayush,
+      id: `ayush-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      created_at: new Date().toISOString(),
+    };
+    this.ayushAssessments.push(newAyush);
+    this.notify();
+    return newAyush;
+  }
+
   public addTriageAlert(alert: Omit<TriageAlert, 'id' | 'created_at'>): TriageAlert {
     const newAlert: TriageAlert = {
       ...alert,

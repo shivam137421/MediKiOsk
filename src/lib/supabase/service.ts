@@ -6,7 +6,12 @@ import {
   TriageAlert, 
   AISummary, 
   AISuggestion, 
-  AuditLog 
+  AuditLog,
+  Document,
+  Medication,
+  Allergy,
+  Investigation,
+  AyushAssessment
 } from '@/types/clinical';
 
 class DataService {
@@ -318,7 +323,36 @@ class DataService {
     return true;
   }
 
-  // 5. AUDIT LOGS
+  // 5. DOCUMENTS & CLINICAL ENTITIES
+  async saveDocument(doc: Omit<Document, 'id' | 'created_at'>): Promise<Document> {
+    return mockDB.addDocument(doc);
+  }
+
+  async getDocumentsByEncounter(encounterId: string): Promise<Document[]> {
+    return mockDB.getDocumentsByEncounter(encounterId);
+  }
+
+  async getDocumentsByPatient(patientId: string): Promise<Document[]> {
+    return mockDB.getDocumentsByPatient(patientId);
+  }
+
+  async saveMedication(med: Omit<Medication, 'id' | 'created_at'>): Promise<Medication> {
+    return mockDB.addMedication(med);
+  }
+
+  async saveAllergy(allergy: Omit<Allergy, 'id' | 'created_at'>): Promise<Allergy> {
+    return mockDB.addAllergy(allergy);
+  }
+
+  async saveInvestigation(inv: Omit<Investigation, 'id' | 'created_at'>): Promise<Investigation> {
+    return mockDB.addInvestigation(inv);
+  }
+
+  async saveAyushAssessment(ayush: Omit<AyushAssessment, 'id' | 'created_at'>): Promise<AyushAssessment> {
+    return mockDB.addAyushAssessment(ayush);
+  }
+
+  // 6. AUDIT LOGS
   async getAuditLogs(): Promise<AuditLog[]> {
     try {
       if (!supabase) return mockDB.getAuditLogs();
@@ -337,3 +371,4 @@ class DataService {
 }
 
 export const dataService = new DataService();
+

@@ -248,17 +248,61 @@ export default function AdminDashboardPage() {
 
                     </div>
 
-                    {/* Complaint & Clinical Rationale Box */}
-                    <div className="p-4 rounded-2xl bg-white/80 dark:bg-slate-850/80 border text-xs space-y-1">
-                      <strong className="text-slate-700 dark:text-slate-300">Chief Complaint & AI Summary:</strong>
-                      <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                        {enc.chief_complaint_summary}
-                      </p>
-                      {enc.emergency_rationale && (
-                        <p className="text-rose-600 dark:text-rose-400 font-semibold pt-1">
-                          🚨 Sentinel Alert: {enc.emergency_rationale}
+                    {/* Complaint & Complete Intake Package */}
+                    <div className="p-4 rounded-2xl bg-white/80 dark:bg-slate-850/80 border text-xs space-y-2.5">
+                      <div>
+                        <strong className="text-slate-700 dark:text-slate-300">Chief Complaint & AI Summary:</strong>
+                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed mt-0.5">
+                          {enc.chief_complaint_summary}
                         </p>
-                      )}
+                        {enc.emergency_rationale && (
+                          <p className="text-rose-600 dark:text-rose-400 font-semibold pt-1">
+                            🚨 Sentinel Alert: {enc.emergency_rationale}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Package Details: Uploaded Docs, Ayush Assessment & Meds */}
+                      {(() => {
+                        const docs = mockDB.getState().documents.filter(d => d.encounter_id === enc.id || d.patient_id === pat?.id);
+                        const ayush = mockDB.getState().ayushAssessments.find(a => a.encounter_id === enc.id || a.patient_id === pat?.id);
+                        const meds = mockDB.getState().medications.filter(m => m.encounter_id === enc.id || m.patient_id === pat?.id);
+
+                        return (
+                          <div className="pt-2 border-t grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-600 dark:text-slate-400">
+                            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border">
+                              <strong className="text-slate-800 dark:text-slate-200 block mb-0.5">📄 Uploaded Documents ({docs.length}):</strong>
+                              {docs.length === 0 ? (
+                                <span className="italic text-slate-400">No documents attached</span>
+                              ) : (
+                                <ul className="space-y-0.5">
+                                  {docs.map((d, i) => (
+                                    <li key={i} className="truncate">• {d.file_name}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+
+                            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border">
+                              <strong className="text-slate-800 dark:text-slate-200 block mb-0.5">🌿 Ayush Assessment:</strong>
+                              {ayush ? (
+                                <span>Prakriti: {ayush.prakriti_primary || 'N/A'} | Vikriti: {ayush.vikriti_dosha || 'N/A'}</span>
+                              ) : (
+                                <span className="italic text-slate-400">Optional / unselected</span>
+                              )}
+                            </div>
+
+                            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border">
+                              <strong className="text-slate-800 dark:text-slate-200 block mb-0.5">💊 Active Meds ({meds.length}):</strong>
+                              {meds.length === 0 ? (
+                                <span className="italic text-slate-400">None reported</span>
+                              ) : (
+                                <span className="truncate block">{meds.map(m => m.name).join(', ')}</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Status & Doctor Assignment Action Strip */}

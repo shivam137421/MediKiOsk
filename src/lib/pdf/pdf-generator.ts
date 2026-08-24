@@ -21,7 +21,7 @@ export function generateAndDownloadClinicalPDF(data: PDFReportData): void {
     format: 'a4',
   });
 
-  const { patient, encounter, summary, ayushAnswers, uploadedDocs, medications, allergies, investigations } = data;
+  const { patient, encounter, summary, ayushAnswers, uploadedDocs, medications, allergies } = data;
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 14;
 
@@ -96,11 +96,11 @@ export function generateAndDownloadClinicalPDF(data: PDFReportData): void {
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(71, 85, 105);
   doc.text(`Age / Sex: ${patient.age_years} Y / ${patient.gender.toUpperCase()}`, 18, y + 12);
-  doc.text(`ABHA ID: ${patient.abha_id || patient.demo_id}`, 18, y + 17);
-  doc.text(`Contact: ${patient.phone || '+91 98765 43210'}`, 18, y + 21);
+  doc.text(`ABHA ID: ${patient.abha_id || patient.demo_id || 'DEMO-PATIENT'}`, 18, y + 17);
+  doc.text(`Contact: ${patient.phone || 'Not provided'}`, 18, y + 21);
 
   // Right-aligned Encounter Badges
-  const recSpecialty = encounter?.recommended_specialty || summary?.recommended_specialty || 'Cardiology';
+  const recSpecialty = encounter?.recommended_specialty || summary?.recommended_specialty || 'General Medicine';
   const isEmerg = encounter?.is_emergency || false;
 
   doc.setTextColor(15, 23, 42);
@@ -139,8 +139,8 @@ export function generateAndDownloadClinicalPDF(data: PDFReportData): void {
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(51, 65, 85);
 
-  const cc = summary?.chief_complaint || encounter?.chief_complaint_summary || 'Acute substernal chest pressure with cold diaphoresis (Severity 8/10).';
-  const hpi = summary?.hpi || 'Patient presented with acute crushing retrosternal pressure starting within last 2 hours. Radiates to left shoulder and jaw, accompanied by cold sweats.';
+  const cc = summary?.chief_complaint || encounter?.chief_complaint_summary || 'Clinical intake recorded.';
+  const hpi = summary?.hpi || 'Clinical interview notes recorded by AI triage assistant.';
 
   doc.setFont('helvetica', 'bold');
   doc.text(`• Chief Complaint: `, 16, y);
@@ -173,7 +173,7 @@ export function generateAndDownloadClinicalPDF(data: PDFReportData): void {
   doc.setTextColor(225, 29, 72);
   doc.text('• Known Allergies:', 16, y);
   doc.setFont('helvetica', 'normal');
-  const allergyText = summary?.allergies_summary || 'PENICILLIN (Severe Urticaria & Facial Angioedema)';
+  const allergyText = summary?.allergies_summary || (allergies && allergies.length > 0 ? allergies.map(a => a.allergen).join(', ') : 'No known adverse drug reactions reported.');
   y = addWrappedText(allergyText, 48, y, pageWidth - 64);
   y += 1.5;
 
@@ -182,7 +182,7 @@ export function generateAndDownloadClinicalPDF(data: PDFReportData): void {
   doc.setFont('helvetica', 'bold');
   doc.text('• Current Meds:', 16, y);
   doc.setFont('helvetica', 'normal');
-  const medsText = summary?.medications_summary || 'Tab Telmisartan 40mg OD [Patient Stated]; Tab Atorvastatin 20mg HS [Document OCR]';
+  const medsText = summary?.medications_summary || (medications && medications.length > 0 ? medications.map(m => `${m.name} ${m.dosage || ''} (${m.frequency || ''})`).join('; ') : 'No active medications reported or found in uploaded documents.');
   y = addWrappedText(medsText, 48, y, pageWidth - 64);
   y += 4;
 
@@ -207,11 +207,12 @@ export function generateAndDownloadClinicalPDF(data: PDFReportData): void {
       doc.text(`[Doc ${idx + 1}] ${docItem.fileName} (${docItem.documentType})`, 16, y);
       doc.setFont('helvetica', 'normal');
       y += 4;
-      y = addWrappedText(`Confidence: ${Math.round(docItem.confidenceScore * 100)}% | Summary: ${docItem.rawText.slice(0, 120)}...`, 20, y, pageWidth - 36);
+      const textPreview = docItem.rawText ? docItem.rawText.slice(0, 120) : 'Text extracted from file';
+      y = addWrappedText(`Confidence: ${Math.round(docItem.confidenceScore * 100)}% | Summary: ${textPreview}...`, 20, y, pageWidth - 36);
       y += 2;
     });
   } else {
-    y = addWrappedText('• Lipid Panel (June 2025): Serum Cholesterol 242 mg/dL (HIGH), LDL 168 mg/dL (HIGH), HDL 38 mg/dL (LOW). STAT 12-lead ECG pending.', 16, y, pageWidth - 32);
+    y = addWrappedText('• No prior laboratory or diagnostic documents were uploaded for this encounter.', 16, y, pageWidth - 32);
     y += 2;
   }
   y += 2;
@@ -231,23 +232,31 @@ export function generateAndDownloadClinicalPDF(data: PDFReportData): void {
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(51, 65, 85);
 
-  const prakriti = ayushAnswers?.prakritiPrimary || 'Vata-Kapha Dual';
-  const vikriti = ayushAnswers?.vikritiDosha || 'Vata Vriddhi (Stiffness, Pain, Joint Crepitus)';
-  const agni = ayushAnswers?.agniType || 'Manda / Vishama (Sluggish/Irregular Digestion)';
-  const koshtha = ayushAnswers?.koshthaType || 'Krura (Constipation Tendency)';
-  const ahara = ayushAnswers?.aharaHabits || 'Sheeta-Ruksha (Cold, dry foods, irregular meal intervals)';
-  const dhatu = ayushAnswers?.dhatuAffected?.join(', ') || 'Asthi, Majja, Mamsa Dhatu';
+  const hasAyushAnswers = ayushAnswers && Object.keys(ayushAnswers).length > 0;
+  if (hasAyushAnswers) {
+    const prakriti = ayushAnswers?.prakritiPrimary ? `${ayushAnswers.prakritiPrimary}${ayushAnswers.prakritiNotes ? ` (${ayushAnswers.prakritiNotes})` : ''}` : 'Not assessed';
+    const vikriti = Array.isArray(ayushAnswers?.vikritiSymptoms) && ayushAnswers.vikritiSymptoms.length > 0 ? ayushAnswers.vikritiSymptoms.join(', ') : (ayushAnswers?.vikritiDosha || 'None reported');
+    const agni = ayushAnswers?.agniType || 'Not specified';
+    const koshtha = ayushAnswers?.koshthaType || 'Not specified';
+    const ahara = Array.isArray(ayushAnswers?.aharaHabits) ? ayushAnswers.aharaHabits.join(', ') : (ayushAnswers?.aharaHabits || 'Standard');
+    const vihara = Array.isArray(ayushAnswers?.viharaHabits) ? ayushAnswers.viharaHabits.join(', ') : (ayushAnswers?.viharaHabits || 'Standard');
+    const dhatu = Array.isArray(ayushAnswers?.dhatuAffected) ? ayushAnswers.dhatuAffected.join(', ') : (ayushAnswers?.dhatuAffected || 'None specified');
+    const nidana = Array.isArray(ayushAnswers?.nidanaTriggers) ? ayushAnswers.nidanaTriggers.join(', ') : (ayushAnswers?.nidanaTriggers || 'None specified');
 
-  doc.text(`• Deha Prakriti: ${prakriti}`, 16, y);
-  doc.text(`• Current Vikriti: ${vikriti}`, 110, y);
-  y += 4.5;
-  doc.text(`• Jatharagni: ${agni}`, 16, y);
-  doc.text(`• Koshtha: ${koshtha}`, 110, y);
-  y += 4.5;
-  y = addWrappedText(`• Ahara & Vihara: ${ahara}`, 16, y, pageWidth - 32);
-  y += 1.5;
-  y = addWrappedText(`• Dhatu & Srotas Affected: ${dhatu}`, 16, y, pageWidth - 32);
-  y += 5;
+    doc.text(`• Deha Prakriti: ${prakriti}`, 16, y);
+    doc.text(`• Current Vikriti: ${vikriti}`, 110, y);
+    y += 4.5;
+    doc.text(`• Jatharagni: ${agni}`, 16, y);
+    doc.text(`• Koshtha: ${koshtha}`, 110, y);
+    y += 4.5;
+    y = addWrappedText(`• Ahara & Vihara: ${ahara} | Routine: ${vihara}`, 16, y, pageWidth - 32);
+    y += 1.5;
+    y = addWrappedText(`• Dhatu & Srotas: ${dhatu} | Triggers: ${nidana}`, 16, y, pageWidth - 32);
+    y += 5;
+  } else {
+    y = addWrappedText('• Step 2 Ayurvedic assessment was optional and left unselected by patient.', 16, y, pageWidth - 32);
+    y += 5;
+  }
 
   // ----------------------------------------------------------------------------
   // SECTION 5: APPOINTMENT DIRECTIVE & PHYSICIAN SIGN-OFF
@@ -263,9 +272,12 @@ export function generateAndDownloadClinicalPDF(data: PDFReportData): void {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
-  doc.text(`Assigned Doctor: Dr. Arvind Sen, MD DM (Cardiology)`, 18, y + 11);
-  doc.text(`Confirmed Slot: ${encounter?.confirmed_appointment_time || 'Today, 03:30 PM (STAT Fast-Track)'}`, 18, y + 16);
-  doc.text(`Location: ${encounter?.appointment_location || 'Cardiology OPD Suite Room 204'}`, 110, y + 16);
+  const doctorText = encounter?.assigned_doctor_id 
+    ? `Assigned Doctor ID: ${encounter.assigned_doctor_id}`
+    : 'Assigned Doctor: Pending Specialist Assignment (Triage Queue)';
+  doc.text(doctorText, 18, y + 11);
+  doc.text(`Confirmed Slot: ${encounter?.confirmed_appointment_time || encounter?.proposed_appointment_time || 'Awaiting Scheduling (Queue)'}`, 18, y + 16);
+  doc.text(`Location: ${encounter?.appointment_location || `${recSpecialty} Consultation Bay`}`, 110, y + 16);
 
   // Footer note
   doc.setFontSize(7.5);
@@ -273,6 +285,7 @@ export function generateAndDownloadClinicalPDF(data: PDFReportData): void {
   doc.text('This document was automatically synthesized by MediKiosk Clinical AI and submitted to Hospital Administration.', pageWidth / 2, 288, { align: 'center' });
 
   // Save / Trigger Download
-  const fileName = `MediKiosk_Clinical_Summary_${patient.full_name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+  const cleanName = (patient.full_name || 'Patient').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+  const fileName = `MediKiosk_Clinical_Summary_${cleanName}_${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(fileName);
 }
