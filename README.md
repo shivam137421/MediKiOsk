@@ -9,8 +9,8 @@
 [![Vercel](https://img.shields.io/badge/Deploy-Vercel-black?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-### 🌐 [**Live Demo Deployment on Vercel**](https://medikiosk.vercel.app)
-*(Live Application URL: [https://medikiosk.vercel.app](https://medikiosk.vercel.app))*
+### 🌐 [**Live Demo Deployment on Vercel**](https://medi-ki-osk.vercel.app/)
+*(Live Application URL: [https://medi-ki-osk.vercel.app/](https://medi-ki-osk.vercel.app/))*
 
 **An intelligent, multi-modal clinical intake kiosk and triage workstation connecting Patients, Doctors, and Hospital Administrators.**
 
