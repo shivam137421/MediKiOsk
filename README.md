@@ -91,12 +91,13 @@ flowchart TD
 
 ## 👥 Role Portals & Demo Credentials
 
-| Role | Description | Demo Credentials |
+| Role | Portal Route | Description | Demo Credentials |
 |---|---|---|---|
-| **Patient** | Spoken/typed symptom intake, document upload, and live appointment tracker. | Direct Access (Public Kiosk) |
-| **Doctor** | Clinical package review, source timeline inspection, and appointment proposal. | **Username:** `doctor`<br>**Password:** `doctor123` |
-| **Admin** | Emergency triage queue, specialist doctor assignment, and throughput metrics. | **Username:** `admin`<br>**Password:** `admin123` |
-| **Auth Hub** | Centralized credential-based authentication and role switcher. | — |
+| **Patient** | [`/patient`](https://medikiosk.vercel.app/patient) | Spoken/typed symptom intake, document upload, and live appointment tracker. | Direct Access (Public Kiosk) |
+| **Doctor** | [`/doctor`](https://medikiosk.vercel.app/doctor) | Clinical package review, source timeline inspection, and appointment proposal. | **Username:** `doctor`<br>**Password:** `doctor123` |
+| **Admin** | [`/admin`](https://medikiosk.vercel.app/admin) | Emergency triage queue, specialist doctor assignment, and throughput metrics. | **Username:** `admin`<br>**Password:** `admin123` |
+| **Auth Hub** | [`/auth/login`](https://medikiosk.vercel.app/auth/login) | Centralized credential-based authentication and role switcher. | — |
+
 
 ---
 
