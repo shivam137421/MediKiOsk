@@ -20,7 +20,8 @@ for (let i = 0; i < patientTurns.length; i++) {
   const patientInput = patientTurns[i];
   console.log(`\n[Turn ${i + 1}] Patient: "${patientInput}"`);
   
-  slots = adaptiveInterviewEngine.parsePatientInput(patientInput, slots);
+  const currentTargetSlot = adaptiveInterviewEngine.generateNextQuestion(slots, 'hi').targetSlot;
+  slots = adaptiveInterviewEngine.parsePatientInput(patientInput, slots, currentTargetSlot);
   const nextQ = adaptiveInterviewEngine.generateNextQuestion(slots, 'hi', i + 1);
   
   console.log(`AI Doctor Question ${i + 1}: "${nextQ.questionText}"`);

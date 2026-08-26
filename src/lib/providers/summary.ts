@@ -21,7 +21,7 @@ export interface SummaryGenerationInput {
 
 /**
  * Asynchronously synthesize AI Clinical Summary via the /api/ai/summary route
- * (Powered by Groq Llama-3.3-70B / Gemini), with grounded local deterministic fallback.
+ * (Powered by Groq GPT-OSS-120B / Gemini), with grounded local deterministic fallback.
  */
 export async function generateAIClinicalSummary(input: SummaryGenerationInput): Promise<Omit<AISummary, 'id' | 'created_at'>> {
   const fallback = generateStructuredClinicalSummary(input);
@@ -62,9 +62,10 @@ export async function generateAIClinicalSummary(input: SummaryGenerationInput): 
       }
     }
   } catch (err) {
-    console.warn('[Summary Provider] Server AI synthesis fallback to deterministic engine:', err);
+    console.warn('[Summary Provider] Server AI synthesis error:', err);
   }
 
+  console.warn('[Summary Provider] ⚠️ Server AI summary synthesis unavailable. Using 100% grounded deterministic clinical engine.');
   return fallback;
 }
 

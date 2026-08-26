@@ -27,7 +27,7 @@ if (!apiKey) {
 }
 
 const groq = new Groq({ apiKey });
-const candidateModels = ['llama-3.3-70b-versatile', 'groq/compound', 'openai/gpt-oss-120b'];
+const candidateModels = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.6-27b'];
 
 async function generate(messages) {
   for (const model of candidateModels) {
@@ -36,7 +36,7 @@ async function generate(messages) {
         messages,
         model,
         temperature: 0.3,
-        max_completion_tokens: 100,
+        max_completion_tokens: 500,
       });
       let text = res.choices[0]?.message?.content?.trim() || '';
       text = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();

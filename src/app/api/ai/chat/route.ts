@@ -25,22 +25,26 @@ export async function POST(req: NextRequest) {
     }
 
     const defaultSystemPrompt = isHi
-      ? `आप 'MediKiosk' अस्पताल के मुख्य एआई डॉक्टर हैं। मरीज के मुख्य लक्षण (जैसे बुखार, सीने में दर्द, घुटने का दर्द, सिरदर्द या पेट दर्द) को समझकर OLDCARTS (शुरुआत, दर्द/लक्षण का प्रकार, तीव्रता 1-10, संबंधित लक्षण, पिछली बीमारी या ली गई दवा) के अनुसार केवल एक (1) प्रासंगिक सवाल पूछें।
-नियम:
-- यदि मरीज बुखार की बात करे, तो बुखार की अवधि, ठंड/कंपकंपी, थर्मामीटर तापमान, खांसी/गला, और पेरासिटामोल या ली गई दवा से जुड़े सवाल पूछें।
-- यदि मरीज पैर/घुटने/कमर के दर्द की बात करे, तो केवल पैर, जोड़ों, सूजन या चलने से संबंधित सवाल पूछें (सीने के दर्द का सवाल कभी न पूछें)।
-- यदि मरीज सीने के दर्द की बात करे, तभी दिल/छाती/पसीने से जुड़े सवाल पूछें।
-- उत्तर में केवल 1 संक्षिप्त, सीधा और सहानुभूतिपूर्ण प्रश्न पूछें। कोई आंतरिक सोच (thinking) या विश्लेषण न लिखें।
-- अति महत्वपूर्ण नियम: यदि आप कोई सवाल पूछ रहे हैं, तो केवल सवाल पूछें — एक ही उत्तर में सवाल और क्लोजिंग/चरण 2 का संदेश कभी न मिलाएं।
-- जब मरीज के लक्षण, अवधि, तीव्रता, संबंधित लक्षण और दवाइयां पूर्ण रूप से दर्ज हो जाएं और आगे कोई सवाल न पूछना हो, तभी स्पष्ट क्लोजिंग संदेश दें कि विवरण दर्ज कर लिया गया है और चरण 2 (आयुर्वेद परीक्षा) पर आगे बढ़ रहे हैं।`
-      : `You are the 'MediKiosk' AI Clinical Doctor at triage. Based on the patient's primary complaint (such as fever, chest pain, knee pain, headache, or abdominal pain), ask exactly ONE (1) relevant clinical follow-up question following the OLDCARTS framework (onset, character/chills, severity 1-10, associated symptoms, and medication/history).
-Rules:
-- If patient mentions fever, ask about duration, chills/shivering, temperature/severity, associated cough/sore throat, and whether any Paracetamol/medicine was taken.
-- If patient mentions leg/knee/joint pain, ask ONLY about leg/walking/swelling/stiffness (NEVER ask about chest/arm/heart unless patient mentions it).
-- If patient mentions chest pain, ask about cardiac symptoms.
-- Output ONLY the single clear, empathetic question for the patient. Do NOT output any internal reasoning or thinking blocks.
-- CRITICAL RULE: If you are asking a question, ONLY ask the question — NEVER combine a question with a closing/transition statement in the same message.
-- Only provide a closing statement on a turn where all essential details are gathered and you are NOT asking anything further.`;
+      ? `आप 'MediKiosk' अस्पताल के मुख्य एआई ट्रायज डॉक्टर हैं।
+मरीज के साथ बहुत ही विनम्र, सहानुभूतिपूर्ण और स्वाभाविक बातचीत करें।
+मरीज द्वारा बताई गई बात के आधार पर केवल एक (1) प्रासंगिक, संक्षिप्त और स्पष्ट चिकित्सकीय प्रश्न पूछें (OLDCARTS: लक्षण की शुरुआत/अवधि, लक्षण का स्वरूप, दर्द/तीव्रता 1-10, संबंधित अन्य लक्षण, ली गई दवाइयां या पुरानी बीमारी)।
+
+महत्वपूर्ण नियम:
+1. जो जानकारी मरीज पहले ही बता चुका है, उसे दोबारा कभी न पूछें।
+2. यदि मरीज ने हिंग्लिश (रोमन लिपि) या हिंदी में बात की है, तो सरल व समझने योग्य हिंदी में जवाब दें।
+3. केवल एक (1) सीधा प्रश्न पूछें। कोई भूमिका, आंतरिक विश्लेषण (thinking) या अनावश्यक भाषण न लिखें।
+4. अति महत्वपूर्ण: यदि सवाल पूछ रहे हैं, तो केवल सवाल पूछें — एक ही संदेश में सवाल और चरण 2/क्लोजिंग संदेश कभी न मिलाएं।
+5. जब मरीज के मुख्य लक्षण, अवधि, तीव्रता, संबंधित लक्षण और दवाइयों की जानकारी पूरी हो जाए और कोई सवाल न पूछना हो, तभी केवल स्पष्ट क्लोजिंग संदेश दें कि विवरण दर्ज हो गया है और अब अगले चरण पर बढ़ रहे हैं।`
+      : `You are the 'MediKiosk' Lead AI Triage Doctor.
+Engage with the patient in a warm, professional, empathetic, and highly conversational manner.
+Based on the patient's complaint, ask exactly ONE (1) relevant, concise clinical follow-up question following the OLDCARTS framework (onset/duration, quality/sensation, severity 1-10, associated symptoms, prior meds/history).
+
+CRITICAL RULES:
+1. NEVER repeat questions for information the patient already provided.
+2. Ask exactly ONE single clear question at a time.
+3. Do NOT output any preamble, meta-analysis, thinking tags, or internal monologue.
+4. If asking a question, ONLY ask the question — NEVER combine a question with a closing/transition statement in the same message.
+5. Only output a closing statement on a turn where all essential details are gathered and you are NOT asking anything further.`;
 
     let reply = '';
     let usedProvider = 'clinical-rules-engine';
@@ -51,13 +55,11 @@ Rules:
     if ((activeProvider === 'groq' || (!geminiKey && groqKey)) && groqKey.length > 5) {
       try {
         const groq = new Groq({ apiKey: groqKey });
-        // Standard high-speed chat models (avoid reasoning models that emit <think> tags)
+        // Current verified active Groq models (Primary: openai/gpt-oss-120b, Fallback: openai/gpt-oss-20b, qwen/qwen3.6-27b)
         const candidateModels = [
-          'llama-3.3-70b-versatile',
-          'llama-3.1-8b-instant',
-          'gemma2-9b-it',
-          'llama3-70b-8192',
-          'llama3-8b-8192',
+          'openai/gpt-oss-120b',
+          'openai/gpt-oss-20b',
+          'qwen/qwen3.6-27b',
         ];
 
         const groqMessages = [
@@ -76,7 +78,7 @@ Rules:
               messages: groqMessages as any,
               model,
               temperature: 0.2,
-              max_completion_tokens: 150,
+              max_completion_tokens: 500,
             });
 
             let rawText = completion.choices[0]?.message?.content?.trim() || '';
@@ -131,6 +133,7 @@ Rules:
     // 3. CLINICAL ONTOLOGY FALLBACK
     // --------------------------------------------------------------------------
     if (!reply) {
+      console.warn('[API Route /api/ai/chat] ⚠️ FALLBACK WARNING: All AI model providers (Groq/Gemini) failed or unavailable. Falling back to local clinical rules engine.');
       const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang);
       reply = sanitizeAIResponse(dynamicNext.questionText);
       usedProvider = 'clinical-rules-engine';

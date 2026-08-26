@@ -95,28 +95,41 @@ CRITICAL CLINICAL INTEGRITY RULES:
     let generatedMarkdown = '';
     let usedModel = 'deterministic-fallback';
 
-    // 1. Try Groq
+    // 1. Try Groq (Primary & Fast Fallback chain)
     if (groqKey && groqKey.length > 5) {
       try {
         const groq = new Groq({ apiKey: groqKey });
-        const completion = await groq.chat.completions.create({
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Synthesize the complete, grounded clinical summary for this patient:\n\n${patientContext}` },
-          ],
-          model: 'llama-3.3-70b-versatile',
-          temperature: 0.2,
-          max_completion_tokens: 1200,
-        });
+        const candidateModels = [
+          'openai/gpt-oss-120b',
+          'openai/gpt-oss-20b',
+          'qwen/qwen3.6-27b',
+        ];
 
-        let rawText = completion.choices[0]?.message?.content?.trim() || '';
-        let cleaned = sanitizeAIResponse(rawText);
-        if (cleaned && cleaned.length > 50) {
-          generatedMarkdown = cleaned;
-          usedModel = 'groq (llama-3.3-70b-versatile)';
+        for (const model of candidateModels) {
+          try {
+            const completion = await groq.chat.completions.create({
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: `Synthesize the complete, grounded clinical summary for this patient:\n\n${patientContext}` },
+              ],
+              model,
+              temperature: 0.2,
+              max_completion_tokens: 2500,
+            });
+
+            let rawText = completion.choices[0]?.message?.content?.trim() || '';
+            let cleaned = sanitizeAIResponse(rawText);
+            if (cleaned && cleaned.length > 50) {
+              generatedMarkdown = cleaned;
+              usedModel = `groq (${model})`;
+              break;
+            }
+          } catch (modelErr: any) {
+            console.warn(`[API Route /api/ai/summary] Groq model ${model} error:`, modelErr?.message || modelErr);
+          }
         }
       } catch (err: any) {
-        console.warn('[API Route /api/ai/summary] Groq generation error:', err?.message || err);
+        console.warn('[API Route /api/ai/summary] Groq client error:', err?.message || err);
       }
     }
 
@@ -143,6 +156,10 @@ CRITICAL CLINICAL INTEGRITY RULES:
       } catch (geminiErr: any) {
         console.warn('[API Route /api/ai/summary] Gemini generation error:', geminiErr?.message || geminiErr);
       }
+    }
+
+    if (!generatedMarkdown) {
+      console.warn('[API Route /api/ai/summary] ⚠️ FALLBACK WARNING: All AI summary providers failed or unavailable. Falling back to local deterministic summary generator.');
     }
 
     return NextResponse.json({

@@ -327,13 +327,8 @@ export default function PatientPortalPage() {
       }));
 
       try {
-        if (groqProvider.isAvailable()) {
-          const result = await groqProvider.generateFollowUpQuestion(chatHistory, { language });
-          nextQuestionText = result.reply;
-          isIntakeComplete = result.isComplete;
-          if (result.slots) mergedSlots = { ...updatedSlots, ...result.slots };
-        } else if (geminiProvider.isAvailable()) {
-          const result = await geminiProvider.generateFollowUpQuestion(chatHistory, { language });
+        const result = await groqProvider.generateFollowUpQuestion(chatHistory, { language });
+        if (result && result.reply && result.reply.trim().length > 0) {
           nextQuestionText = result.reply;
           isIntakeComplete = result.isComplete;
           if (result.slots) mergedSlots = { ...updatedSlots, ...result.slots };

@@ -21,7 +21,7 @@ export interface AICompletionResult {
 }
 
 export class GroqAIProvider {
-  public name = 'Groq Cloud AI (Llama-3.3-70B)';
+  public name = 'Groq Cloud AI (GPT-OSS-120B / GPT-OSS-20B)';
   private client: Groq | null = null;
   private apiKey: string = '';
 
@@ -41,7 +41,7 @@ export class GroqAIProvider {
   }
 
   public isAvailable(): boolean {
-    return Boolean(this.apiKey && this.apiKey.trim().length > 5);
+    return true;
   }
 
   public async generateFollowUpQuestion(
@@ -94,10 +94,9 @@ export class GroqAIProvider {
     // 3. Try Direct Groq Client if in server/Node environment
     if (this.client) {
       const candidateModels = [
-        options.preferredModel || 'llama-3.3-70b-versatile',
-        'llama-3.1-8b-instant',
-        'gemma2-9b-it',
-        'llama3-70b-8192',
+        options.preferredModel || 'openai/gpt-oss-120b',
+        'openai/gpt-oss-20b',
+        'qwen/qwen3.6-27b',
       ];
 
       const messages: any[] = [
@@ -119,7 +118,7 @@ export class GroqAIProvider {
             messages,
             model,
             temperature: 0.2,
-            max_completion_tokens: 150,
+            max_completion_tokens: options.maxTokens || 500,
           });
 
           let rawText = completion.choices[0]?.message?.content?.trim() || '';
@@ -139,6 +138,7 @@ export class GroqAIProvider {
     }
 
     // 4. Guaranteed Dynamic Question from parsed clinical information gaps
+    console.warn('[Groq Provider] ⚠️ FALLBACK WARNING: Groq AI failed or returned empty response. Falling back to dynamic clinical ontology engine.');
     const dynamicNext = adaptiveInterviewEngine.generateNextQuestion(slots, lang);
     const cleanDynamicText = sanitizeAIResponse(dynamicNext.questionText);
     const isAsking = cleanDynamicText.includes('?') || cleanDynamicText.includes('？');

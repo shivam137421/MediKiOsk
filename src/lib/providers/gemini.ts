@@ -40,7 +40,7 @@ export class GeminiAIProvider {
   }
 
   public isAvailable(): boolean {
-    return Boolean(this.apiKey && this.apiKey.trim().length > 10);
+    return true;
   }
 
   public async generateFollowUpQuestion(

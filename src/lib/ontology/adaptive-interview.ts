@@ -39,8 +39,8 @@ export class AdaptiveClinicalInterviewEngine {
       redFlagSymptoms: [...(existingSlots.redFlagSymptoms || [])],
     };
 
-    // Determine what information gap was targeted if not explicitly passed
-    const effectiveTargetSlot = targetSlot || this.generateNextQuestion(existingSlots, 'hi').targetSlot;
+    // Determine what information gap was targeted if explicitly passed
+    const effectiveTargetSlot = targetSlot;
     const isSubstantive = text.length >= 2 && !/^(hi|hello|hey|namaste|नमस्ते|ok|okay|theek hai|ठीक है|achha|accha)$/i.test(text);
 
     // --------------------------------------------------------------------------
@@ -161,10 +161,12 @@ export class AdaptiveClinicalInterviewEngine {
         text.includes('hafte') || text.includes('हफ्ते') || text.includes('month') || text.includes('mahine') || text.includes('महीने') ||
         text.includes('saal') || text.includes('year') || text.includes('वर्ष') || text.includes('sal') ||
         text.includes('november') || text.includes('december') || text.includes('january') || text.includes('february') || text.includes('march') ||
+        text.includes('april') || text.includes('may') || text.includes('june') || text.includes('july') || text.includes('august') || text.includes('september') || text.includes('october') ||
         text.includes('subah') || text.includes('सुबह') || text.includes('shaam') || text.includes('शाम') || text.includes('raat') || text.includes('रात') ||
         text.includes('aaj') || text.includes('आज') || text.includes('teer') || text.includes('chot') || text.includes('चोट') ||
         text.includes('accident') || text.includes('gir') || text.includes('lagi') || text.includes('shuru') || text.includes('शुरू') ||
-        text.includes('since') || text.includes('started') || /\b(se|ago)\b/.test(text) || text.includes('से') ||
+        text.includes('since') || text.includes('started') || /\b\d+\s*(din|ghante|hafte|mahine|saal|day|hour|week|month|year|min|minute)s?\b/i.test(text) ||
+        /\b(ago)\b/.test(text) ||
         (effectiveTargetSlot === 'durationOnset' && isSubstantive)
       )
     ) {
@@ -184,7 +186,6 @@ export class AdaptiveClinicalInterviewEngine {
         text.includes('marod') || text.includes('मरोड़') || text.includes('spasm') ||
         text.includes('akdan') || text.includes('अकड़न') || text.includes('stiff') || text.includes('stiffness') ||
         text.includes('toot') || text.includes('टूट') || text.includes('tootan') || text.includes('टूटना') || text.includes('tootna') ||
-        text.includes('dukhna') || text.includes('दुखना') || text.includes('dukh') || text.includes('dard') || text.includes('ache') || text.includes('aching') ||
         text.includes('fatan') || text.includes('फटना') || text.includes('kasaav') || text.includes('कसाव') || text.includes('tight') ||
         text.includes('bhari') || text.includes('भारी') || text.includes('bhareepan') || text.includes('भारीपन') || text.includes('dull') || text.includes('meetha dard') ||
         text.includes('throbbing') || text.includes('pulsat') || text.includes('dhadkan') || text.includes('धड़कन') || text.includes('thanak') || text.includes('ठनक') ||
@@ -243,12 +244,10 @@ export class AdaptiveClinicalInterviewEngine {
     if (
       !slots.radiationLocation &&
       (
-        text.includes('kamar') || text.includes('कमर') || text.includes('hip') || text.includes('koolhe') || text.includes('कूल्हे') ||
-        text.includes('arm') || text.includes('shoulder') || text.includes('haath') || text.includes('हाथ') || text.includes('baanh') || text.includes('बांह') ||
-        text.includes('neck') || text.includes('gardan') || text.includes('गर्दन') || text.includes('jaw') || text.includes('jabde') || text.includes('जबड़े') ||
-        text.includes('gale') || text.includes('गले') || text.includes('peeth') || text.includes('पीठ') || text.includes('back') ||
-        text.includes('spread') || text.includes('radiat') || text.includes('fail') || text.includes('फैल') ||
-        (effectiveTargetSlot === 'radiationLocation' && isSubstantive)
+        (effectiveTargetSlot === 'radiationLocation' && isSubstantive) ||
+        text.includes('spread') || text.includes('radiat') || text.includes('fail') || text.includes('फैल') || text.includes('ja raha') || text.includes('जा रहा') ||
+        ((text.includes('arm') || text.includes('haath') || text.includes('हाथ') || text.includes('jaw') || text.includes('jabde') || text.includes('जबड़े') || text.includes('shoulder')) && (slots.chiefComplaint?.includes('Chest') || text.includes('chest') || text.includes('seen'))) ||
+        ((text.includes('kamar') || text.includes('कमर') || text.includes('hip') || text.includes('koolhe') || text.includes('कूल्हे') || text.includes('peeth') || text.includes('पीठ')) && (slots.chiefComplaint?.includes('Leg') || slots.chiefComplaint?.includes('Knee') || text.includes('pair')))
       )
     ) {
       if (/^(nahi|no|kuch nahi|kahi nahi|koi nahi|none|nil|नहीं)$/i.test(text)) {
@@ -286,7 +285,7 @@ export class AdaptiveClinicalInterviewEngine {
     if (text.includes('gala') || text.includes('गले') || text.includes('throat') || text.includes('kharaash') || text.includes('खराश')) {
       if (!slots.associatedSymptoms?.includes('Sore Throat / Pharyngitis')) slots.associatedSymptoms?.push('Sore Throat / Pharyngitis');
     }
-    if (text.includes('peshab') || text.includes('पेशाब') || text.includes('urine') || text.includes('jalan')) {
+    if (text.includes('peshab') || text.includes('पेशाब') || text.includes('urine') || (text.includes('jalan') && (text.includes('peshab') || text.includes('mutra') || text.includes('toilet') || text.includes('bathroom')))) {
       if (!slots.associatedSymptoms?.includes('Dysuria / Urinary Discomfort')) slots.associatedSymptoms?.push('Dysuria / Urinary Discomfort');
     }
 
@@ -299,16 +298,16 @@ export class AdaptiveClinicalInterviewEngine {
         text.includes('bp') || text.includes('hypertension') || text.includes('sugar') ||
         text.includes('diabetes') || text.includes('मधुमेह') || text.includes('uric') || text.includes('यूरिक') ||
         text.includes('thyroid') || text.includes('थायरॉयड') || text.includes('heart') || text.includes('हार्ट') ||
-        text.includes('purani bimari') || text.includes('पुरानी बीमारी') ||
+        text.includes('purani bimari') || text.includes('पुरानी बीमारी') || text.includes('koi bimari') || text.includes('कोई बीमारी') ||
         text.includes('dawa') || text.includes('dawai') || text.includes('दवा') || text.includes('दवाई') || text.includes('medicine') || text.includes('tablet') || text.includes('गोली') ||
         text.includes('paracetamol') || text.includes('pcm') || text.includes('dolo') || text.includes('डोलो') || text.includes('crocin') || text.includes('क्रॉसिन') ||
         text.includes('calpol') || text.includes('combiflam') || text.includes('meftal') ||
-        /\b(no|nahi|nhi|none|nil|kuch nahi|koi nahi|na|never)\b/.test(text) || text.includes('कोई बीमारी नहीं') ||
-        text.includes('नहीं है') || text.includes('कोई दवा नहीं') ||
+        (effectiveTargetSlot === 'pastHistory' && (/\b(no|nahi|nhi|none|nil|kuch nahi|koi nahi|na|never)\b/.test(text) || text.includes('नहीं'))) ||
+        text.includes('कोई बीमारी नहीं') || text.includes('नहीं है') || text.includes('कोई दवा नहीं') ||
         (effectiveTargetSlot === 'pastHistory' && isSubstantive)
       )
     ) {
-      if (/^(no|nahi|nhi|none|nil|kuch nahi|koi nahi|na|never|नहीं|कोई बीमारी नहीं|नहीं है|कोई दवा नहीं)$/i.test(text)) {
+      if (/^(no|nahi|nhi|none|nil|kuch nahi|koi nahi|na|never|नहीं|कोई बीमारी नहीं|नहीं है|कोई दवा नहीं)$/i.test(text) || text.includes('koi bimari nahi') || text.includes('koi purani bimari nahi') || text.includes('कोई बीमारी नहीं')) {
         slots.pastHistory = ['None reported / No pre-existing conditions or regular medications'];
       } else {
         slots.pastHistory = [latestText.trim()];
@@ -537,7 +536,7 @@ export class AdaptiveClinicalInterviewEngine {
             ? 'क्या सिरदर्द के साथ आँखों में भारीपन, उल्टी का मन या रोशनी/आवाज से परेशानी हो रही है?'
             : 'Along with the headache, do you have nausea, eye strain, or sensitivity to light/sound?',
           isReadyForStep2: false,
-          targetSlot: 'radiationLocation',
+          targetSlot: 'associatedSymptoms',
         };
       }
       if (isFever) {
@@ -546,7 +545,7 @@ export class AdaptiveClinicalInterviewEngine {
             ? 'क्या बुखार के साथ खांसी, जुकाम, गले में खराश, सिरदर्द, उल्टी या पेशाब में जलन जैसी कोई अन्य शिकायत भी है?'
             : 'Along with fever, do you have cough, cold, sore throat, headache, vomiting, or burning during urination?',
           isReadyForStep2: false,
-          targetSlot: 'radiationLocation',
+          targetSlot: 'associatedSymptoms',
         };
       }
       return {
