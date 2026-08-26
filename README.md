@@ -20,13 +20,13 @@
 
 ---
 
-## 📌 Executive Summary
+##  Executive Summary
 
 **MediKiosk** is a next-generation hospital intake system engineered to eliminate clinical administrative burdens and bridge the patient-provider communication gap. By combining **bilingual speech recognition (Hindi / English)**, **dynamic clinical interviews (OLDCARTS / OPQRST framework)**, **OCR document parsing**, and **Manchester Acuity emergency triage**, MediKiosk delivers high-precision clinical packages directly to specialists before the patient ever enters the examination room.
 
 ---
 
-## ⚡ 5-Stage Clinical Workflow
+##  5-Stage Clinical Workflow
 
 ```mermaid
 flowchart TD
@@ -64,44 +64,32 @@ flowchart TD
 
 ---
 
-## 🌟 Key Features
+##  Key Features
 
-### 🎙️ 1. Multi-Modal Bilingual Voice Intake
+###  1. Multi-Modal Bilingual Voice Intake
 - **Dual-Language Speech Engine:** Full voice-in and voice-out support for **Hindi (`hi-IN`)** and **English (`en-IN`)** with neural audio fallback.
 - **Adaptive Clinical Ontology:** 5-turn structured interview covering Chief Complaint, Onset, Character, Radiation, Severity, and Associated Symptoms without premature termination.
 - **Real-Time Dynamic MCQs:** Intelligent single-tap multiple-choice chips generated contextually for elderly or voice-fatigued patients.
 
-### 📄 2. Document OCR & Clinical Reconciliation
+###  2. Document OCR & Clinical Reconciliation
 - **Prescription & Panel Ingestion:** Upload camera captures or PDFs of past medical files.
 - **Entity Extraction:** Automated parsing of active medications, dosages, frequency, and abnormal biomarker ranges with source citation badges.
 
-### 🚨 3. Red-Flag Sentinel & Emergency Triage
+###  3. Red-Flag Sentinel & Emergency Triage
 - **Acuity Scoring:** Real-time detection of high-risk symptoms (chest pain radiating to arm, acute dyspnea, stroke signs, severe trauma).
 - **Admin Emergency Override:** Critical patients bypass standard queues, triggering visual strobe alerts and immediate specialist allocation.
 
-### 🏥 4. Doctor Workstation & Pre-Consultation Package
+###  4. Doctor Workstation & Pre-Consultation Package
 - **Pre-Visit Briefing:** Eliminates repeat questioning by presenting doctors with structured history of present illness (HPI), medication timelines, and differential diagnoses.
 - **Slot Proposal & Mode Selection:** Physicians propose in-person, tele-consult, or emergency bed slots with clinical directives.
 
-### 🛡️ 5. Role-Based Access Control (RBAC) & Auditability
+###  5. Role-Based Access Control (RBAC) & Auditability
 - **Server-Side Security:** Next.js Edge middleware enforcing role isolation for `/patient`, `/doctor`, and `/admin`.
 - **Tamper-Evident Audit Trail:** Every status mutation, assignment, and clinical sign-off is logged with timestamps and operator IDs.
 
 ---
 
-## 👥 Role Portals & Demo Credentials
-
-| Role | Portal Route | Description | Demo Credentials |
-|---|---|---|---|
-| **Patient** | [`/patient`](https://medikiosk.vercel.app/patient) | Spoken/typed symptom intake, document upload, and live appointment tracker. | Direct Access (Public Kiosk) |
-| **Doctor** | [`/doctor`](https://medikiosk.vercel.app/doctor) | Clinical package review, source timeline inspection, and appointment proposal. | **Username:** `doctor`<br>**Password:** `doctor123` |
-| **Admin** | [`/admin`](https://medikiosk.vercel.app/admin) | Emergency triage queue, specialist doctor assignment, and throughput metrics. | **Username:** `admin`<br>**Password:** `admin123` |
-| **Auth Hub** | [`/auth/login`](https://medikiosk.vercel.app/auth/login) | Centralized credential-based authentication and role switcher. | — |
-
-
----
-
-## 🛠️ Technology Architecture
+##  system Architecture
 
 ```
 ├── src/
@@ -128,7 +116,7 @@ flowchart TD
 
 ---
 
-## 🚀 Local Development Setup
+##  Local Development Setup
 
 ### Prerequisites
 - **Node.js:** `v18.18.0` or higher
@@ -156,7 +144,7 @@ cp .env.example .env.local
 ```bash
 npm run dev
 ```
-Open **[http://localhost:3000](http://localhost:3000)** in your browser.
+Open to localhost provided by local system in your browser.
 
 ### 5. Verification & Tests
 ```bash
@@ -169,7 +157,7 @@ npm run build
 
 ---
 
-## ⚙️ Environment Variables
+##  Environment Variables
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
